@@ -1,0 +1,45 @@
+Application Extension Handler.Score.Inputs.Current Score,Current trainee score at that time,Output
+ContentExtensionScene.CONS_ENV_MET_CAT.Inputs.CONS_ENV_MET_BALL_FALL,Number of tennis balls knocked over by operator,Output
+ContentExtensionScene.CONS_ENV_MET_CAT.Inputs.CONS_ENV_MET_BARR_KNOCK,Number of barrels knocked over,Output
+ContentExtensionScene.CONS_ENV_MET_CAT.Inputs.CONS_ENV_MET_BARR_TOUCH,Number of barrels touches,Output
+ContentExtensionScene.CONS_ENV_MET_CAT.Inputs.CONS_ENV_MET_COLLISIONS,Number of equipment collisions,Output
+ContentExtensionScene.CONS_ENV_MET_CAT.Inputs.CONS_ENV_MET_POLE_FALL,Number of poles that fell over,Output
+ContentExtensionScene.CONS_ENV_MET_CAT.Inputs.CONS_ENV_MET_POLE_TOUCH,Number of poles touched,Output
+ContentExtensionScene.CONS_PERF_MET_CAT.Inputs.CONS_PERF_ARC_RESTART,Number of times user had to restart an arc,Output
+ContentExtensionScene.CONS_PERF_MET_CAT.Inputs.CONS_PERF_MET_PATH_OUTTIME_AVERAGE,Average time out of path range,Output
+ContentExtensionScene.CONS_PERF_MET_CAT.Inputs.CONS_PERF_MET_PATH_OUTTIME_CURRENT,Current path time out of range,Output
+ContentExtensionScene.CONS_PERF_MET_CAT.Inputs.CONS_PERF_MET_PATH_SCORE_AVERAGE,Average score per path,Output
+ContentExtensionScene.CONS_PERF_MET_CAT.Inputs.CONS_PERF_MET_PATH_SCORE_CURRENT,Current path score,Output
+ContentExtensionScene.CONS_PERF_MET_CAT.Inputs.CONS_PERF_MET_PATH_TIME_AVERAGE,Average time per path,Output
+ContentExtensionScene.CONS_PERF_MET_CAT.Inputs.CONS_PERF_MET_PATH_TIME_CURRENT,Current path time,Output
+ContentExtensionScene.CONS_PERF_MET_CAT.Inputs.CONS_PERF_MET_PATH_TOTAL_OUTTIME,Total time out of path,Output
+ContentExtensionScene.CONS_PERF_MET_CAT.Inputs.CONS_PERF_MET_PATH_TOTAL_TIME,Total path time,Output
+Environment.CONS_ENV_MET_CAT.Inputs.CONS_ENV_MET_WEA_WIND_SPEED,Wind speed,Output
+Excavator.CONS_ENV_MET_CAT.Inputs.CONS_ENV_MET_COLLISIONS,Collisions with environment,Output
+Excavator.CONS_MACH_MET_CAT.Inputs.CONS_GOAL_MET_BUCKETA,Bucket Angle,Input
+Excavator.CONS_MACH_MET_CAT.Inputs.CONS_GOAL_MET_BUCKETH,Bucket Height,Input
+Excavator.CONS_MACH_MET_CAT.Inputs.CONS_MACH_MET_BUCKET_SELF,Bucket Self Contact,Output
+Excavator.CONS_MACH_MET_CAT.Inputs.CONS_MACH_MET_ENGINEAV,Engine Average Power,Output
+Excavator.CONS_MACH_MET_CAT.Inputs.CONS_MACH_MET_ENG_POWCUR,Current Engine Power,Input
+Excavator.CONS_MACH_MET_CAT.Inputs.CONS_MACH_MET_ENG_TORQUE,Engine Torque,Input
+Excavator.CONS_MACH_MET_CAT.Inputs.CONS_MACH_MET_ENG_TORQUEAV,Engine Torque Average,Output
+Excavator.CONS_MACH_MET_CAT.Inputs.CONS_MACH_MET_FUELCONRATEAV,Fuel Consumption Rate Average,Output
+Excavator.CONS_MACH_MET_CAT.Inputs.CONS_MACH_MET_FUEL_CONS,Fuel Consumption,Output
+Excavator.CONS_MACH_MET_CAT.Inputs.CONS_MACH_MET_IDLE_COUNT,Number of times machine was left idling,Output
+Excavator.CONS_MACH_MET_CAT.Inputs.CONS_MACH_MET_IDLE_TIME,Total time machine was left idling,Output
+Excavator.CONS_MACH_MET_CAT.Inputs.CONS_MACH_MET_OPERATING_RATIO,Ratio of time that operator runs equipment vs idle time,Output
+Excavator.CONS_MACH_MET_CAT.Inputs.CONS_MACH_MET_REVOLUTION,Engine RPM (%),Input
+Excavator.CONS_MACH_MET_CAT.Inputs.CONS_MACH_MET_REVOLUTION_AV,Engine RPM Average,Output
+Excavator.CONS_MACH_MET_CAT.Inputs.CONS_MACH_MET_TRACKS_GRND_PRESR_FL,Tracks Ground Pressure Front Left,Output
+Excavator.CONS_MACH_MET_CAT.Inputs.CONS_MACH_MET_TRACKS_GRND_PRESR_FR,Tracks Ground Pressure Front Right,Output
+Excavator.CONS_MACH_MET_CAT.Inputs.CONS_MACH_MET_TRACKS_GRND_PRESR_RL,Tracks Ground Pressure Rear Left,Output
+Excavator.CONS_MACH_MET_CAT.Inputs.CONS_MACH_MET_TRACKS_GRND_PRESR_RR,Tracks Ground Pressure Rear Right,Output
+Excavator.CONS_SAFEVIO_ENV_CAT.Inputs.CONS_SAFEVIO_BUCKETOVERCAB,Safety violation bucket over truck cab,Output
+Excavator.CONS_SAFEVIO_ENV_CAT.Inputs.CONS_SAFEVIO_DUMPTRUCK,Safety violation dump truck contact,Output
+Excavator.CONS_SAFEVIO_ENV_CAT.Inputs.CONS_SAFEVIO_ELECTRIC,Safety violation electrical lines,Output
+Excavator.CONS_SAFEVIO_ENV_CAT.Inputs.CONS_SAFEVIO_HUMAN,Safety violation human contact,Output
+Excavator.CONS_SAFEVIO_ENV_CAT.Inputs.CONS_SAFEVIO_LOADOVERHUMAN,Safety violation load over human,Output
+Excavator.CONS_SAFEVIO_ENV_CAT.Inputs.CONS_SAFEVIO_SAFEPARKING,Safety violation unsafe parking position,Output
+Excavator.CONS_SAFEVIO_ENV_CAT.Inputs.CONS_SAFEVIO_VEHICLEFLIP,Safety violation Flipped Vehicle,Output
+Scenario Setup.CONS_GOAL_MET_CAT.Inputs.CONS_GOAL_MET_GOALS,Exercise Number of goals met,Output
+Scenario Setup.CONS_GOAL_MET_CAT.Inputs.CONS_GOAL_MET_TIME,Exercise Time,Output
