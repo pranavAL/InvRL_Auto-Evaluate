@@ -44,13 +44,9 @@ test_loader = DataLoader(test_dataset, shuffle=True, batch_size=32)
 class Net(nn.Module):
     def __init__(self):
         super().__init__()
-        self.fc = nn.Sequential(nn.Linear(28,128),
+        self.fc = nn.Sequential(nn.Linear(28,64),
                                 nn.ReLU(),
-                                nn.Linear(128,256),
-                                nn.ReLU(),
-                                nn.Linear(256,128),
-                                nn.ReLU(),
-                                nn.Linear(128,1))
+                                nn.Linear(64,1))
         
     def forward(self, x):
         out = self.fc(x)
@@ -58,7 +54,7 @@ class Net(nn.Module):
     
 net = Net()
 criterion = nn.MSELoss()               
-optimizer = optim.Adam(net.parameters(), lr=0.005)
+optimizer = optim.SGD(net.parameters(), lr=0.005)
 tr_loss = []
 te_loss = []
 
@@ -95,7 +91,7 @@ plt.ylabel("Loss")
 plt.plot(range(len(tr_loss)),tr_loss, color='red')        
 plt.plot(range(len(te_loss)),te_loss, color='blue') 
 plt.legend(["Train", "Test"])       
-plt.show()
 plt.savefig("output.png")
+plt.show()
 
 
