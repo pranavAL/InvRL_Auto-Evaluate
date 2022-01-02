@@ -1,11 +1,10 @@
 import torch
 import wandb
 import numpy as np
-import torchmetrics
 import pandas as pd
 import torch.nn as nn
 import pytorch_lightning as pl
-import matplotlib.pyplot as plt
+import torch.nn.functional as F
 from torch.autograd import Variable
 from torch.utils.data import Dataset, DataLoader
 from pytorch_lightning.loggers import WandbLogger
@@ -25,7 +24,7 @@ class CraneDataset(Dataset):
         return torch.tensor(self.X[index]).float(), torch.tensor(self.X[index]).float()
     
 class CraneDatasetModule(pl.LightningDataModule):
-    def __init__(self, seq_len, batch_size, num_workers=0):
+    def __init__(self, seq_len, batch_size, num_workers=8):
         super().__init__()
         self.seq_len = seq_len
         self.batch_size = batch_size
@@ -89,20 +88,26 @@ class CraneDatasetModule(pl.LightningDataModule):
         return test_loader
     
 class Encoder(nn.Module):
-    def __init__(self, n_features, embedding_dim, seq_len, latent_spc, num_layers, dropout):
+    def __init__(self, n_features, embedding_dim, seq_len, num_layers):
         super(Encoder, self).__init__()
         self.num_layers = num_layers
-        self.latent_spc = latent_spc
         self.seq_len, self.n_features = seq_len, n_features
         self.embedding_dim, self.hidden_dim = embedding_dim, 2 * embedding_dim 
+        self.latent_spc = int(self.embedding_dim / 2)
         
         self.lstm = nn.LSTM(input_size=self.n_features,
                              hidden_size=self.hidden_dim,
                              num_layers=num_layers,
-                             dropout=dropout,
                              batch_first=True)
         
-        self.fc = nn.Linear(self.hidden_dim, self.latent_spc)
+        self.fc = nn.Linear(self.hidden_dim, self.embedding_dim)
+        self.fc1 = nn.Linear(self.embedding_dim, self.latent_spc)
+        self.fc2 = nn.Linear(self.embedding_dim, self.latent_spc)
+    
+    def reparameterize(self, mu, logvar):
+        std = torch.exp(0.5 * logvar)
+        eps = torch.randn_like(std)
+        return eps * std + mu    
         
     def forward(self, x):
         h_0 = Variable(torch.zeros(
@@ -112,92 +117,98 @@ class Encoder(nn.Module):
             self.num_layers, x.size(0), self.hidden_dim).cuda())
         
         _, (h_out, _) = self.lstm(x, (h_0, c_0))
-        return self.fc(h_out)
+        out = self.fc(h_out)
+        mu, logvar = self.fc1(out), self.fc2(out)
+        z = self.reparameterize(mu, logvar)
+        return z, mu, logvar
             
 class Decoder(nn.Module):
-    def __init__(self, input_dim, seq_len, num_layers, dropout, n_features):
+    def __init__(self, input_dim, seq_len, num_layers, n_features):
         super(Decoder, self).__init__()
         self.n_features = n_features
         self.seq_len, self.input_dim = seq_len, input_dim
-        self.embedding_dim, self.hidden_dim = 2 * input_dim, input_dim
+        self.embedding_dim = 2 * input_dim
         
         self.lstm = nn.LSTM(input_size=input_dim, 
-                             hidden_size=input_dim,
+                             hidden_size=self.embedding_dim,
                              num_layers=num_layers,
-                             dropout=dropout,
                              batch_first=True)
         
-        self.output_layer = nn.Linear(self.hidden_dim, n_features)
+        self.output_layer = nn.Linear(self.embedding_dim, n_features)
         
     def forward(self, x):
         x = x.repeat(self.seq_len, 1, 1)
         x = x.reshape((-1, self.seq_len, self.input_dim))
         
         out, _ = self.lstm(x)
-        out = out.reshape((-1, self.seq_len, self.hidden_dim))
+        out = out.reshape((-1, self.seq_len, self.embedding_dim))
         
         return self.output_layer(out)
              
 class LSTMPredictor(pl.LightningModule):
-    def __init__(self, n_features, embedding_dim, seq_len, latent_spc, batch_size, num_layers, dropout, learning_rate, criterion):
+    def __init__(self, n_features, embedding_dim, seq_len, batch_size, num_layers, learning_rate):
         super(LSTMPredictor,self).__init__()
         self.n_features = n_features
         self.embedding_dim = embedding_dim
         self.seq_len = seq_len
-        self.latent_spc = latent_spc
         self.batch_size = batch_size
         self.num_layers = num_layers
-        self.dropout = dropout
-        self.criterion = criterion
         self.learning_rate = learning_rate
+        self.latent_spc = int(embedding_dim / 2)
         
-        self.encoder = Encoder(n_features, embedding_dim, seq_len, latent_spc, num_layers, dropout)
-        self.decoder = Decoder(latent_spc, seq_len, self.num_layers, self.dropout, n_features)
+        self.encoder = Encoder(n_features, embedding_dim, seq_len, num_layers)
+        self.decoder = Decoder(self.latent_spc, seq_len, self.num_layers, n_features)
         
         self.save_hyperparameters()
             
     def forward(self, x):
-        x = self.encoder(x)
+        x, mu, logvar = self.encoder(x)
         x = self.decoder(x)
-        return x
+        return x, mu, logvar
     
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.learning_rate)
     
     def training_step(self, batch, batch_idx):
         x, y = batch
-        y_hat = self(x)
-        loss = self.criterion(y_hat, y)
-        
-        self.log('train/loss', loss, on_epoch=True)
+        y_hat, mu, logvar = self(x)
+        rloss = F.mse_loss(y_hat, y)
+        kld = torch.mean(-0.5 * torch.sum(1 + logvar -mu.pow(2) - logvar.exp(), dim=1), dim=1)
+        loss = rloss + kld
+        self.log('train/recon_loss', rloss, on_epoch=True)
+        self.log('train/kld', kld, on_epoch=True)
+        self.log('train/total_loss', loss, on_epoch=True)
         return loss
     
     def validation_step(self, batch, batch_idx):
         x, y = batch
-        y_hat = self(x)
-        loss = self.criterion(y_hat, y)
-        
-        self.log("val/loss_epoch", loss, on_step=False, on_epoch=True)
+        y_hat, mu, logvar = self(x)
+        rloss = F.mse_loss(y_hat, y)
+        kld = torch.mean(-0.5 * torch.sum(1 + logvar -mu.pow(2) - logvar.exp(), dim=1), dim=0)
+        loss = rloss + kld
+        self.log('val/recon_loss', rloss, on_epoch=True)
+        self.log('val/kld', kld, on_epoch=True)
+        self.log('val/total_loss', loss, on_epoch=True)
         return loss
     
     def test_step(self, batch, batch_idx):
         x, y = batch
-        y_hat = self(x)
-        loss = self.criterion(y_hat, y)
-        
-        self.log("test/loss_epoch", loss, on_step=False, on_epoch=True)
+        y_hat, mu, logvar = self(x)
+        rloss = F.mse_loss(y_hat, y)
+        kld = torch.mean(-0.5 * torch.sum(1 + logvar -mu.pow(2) - logvar.exp(), dim=1), dim=0)
+        loss = rloss + kld
+        self.log('test/recon_loss', rloss, on_epoch=True)
+        self.log('test/kld', kld, on_epoch=True)
+        self.log('test/total_loss', loss, on_epoch=True)
         return loss
     
 p = dict(
-    seq_len = 24,
-    batch_size = 70,
-    latent_spc = 128, 
-    criterion = nn.L1Loss(reduction='sum'),
-    max_epochs = 20,
+    seq_len = 8,
+    batch_size = 8,
+    max_epochs = 100,
     n_features = 9,
-    embedding_dim = 100,
+    embedding_dim = 4,
     num_layers = 1,
-    dropout = 0,
     learning_rate = 0.001
 )       
 
@@ -207,17 +218,14 @@ wandb_logger = WandbLogger(project="lit-wandb")
 trainer = Trainer(max_epochs=p['max_epochs'],
                   gpus = 1,
                   logger=wandb_logger,
-                  log_every_n_steps=50)    
+                  log_every_n_steps=5)    
 
 model = LSTMPredictor(
     n_features = p['n_features'],
     embedding_dim = p['embedding_dim'],
     seq_len = p['seq_len'],
-    latent_spc = p['latent_spc'],
     batch_size = p['batch_size'],
-    criterion = p['criterion'],
     num_layers = p['num_layers'],
-    dropout = p['dropout'],
     learning_rate = p['learning_rate']
 )
 
