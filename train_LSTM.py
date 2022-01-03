@@ -1,3 +1,4 @@
+import os
 import torch
 import wandb
 import warnings
@@ -35,7 +36,7 @@ class CraneDatasetModule():
         self.columns = None
         self.preprocessing = None
         
-        data_path = "features_to_train.csv"
+        data_path = os.path.join("datasets","features_to_train.csv")
         
         df = pd.read_csv(data_path)
         
@@ -239,7 +240,7 @@ with torch.no_grad():
     train_pred = get_sample(dm.X_train)
     test_pred = get_sample(dm.X_test)
 
-np.save("train.npy", np.array(train_pred))
-np.save("test.npy", np.array(test_pred))
+np.save(os.path.join("outputs","train.npy"), np.array(train_pred))
+np.save(os.path.join("outputs","test.npy"), np.array(test_pred))
     
 wandb.finish()                       

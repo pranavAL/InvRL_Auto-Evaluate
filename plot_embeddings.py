@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -20,11 +21,11 @@ def plot_embeddings(data):
         ax.scatter(x, y, c=color, label=user)
     fig.suptitle('Latent Space of Expert vs Novice')
     ax.legend()
-    fig.savefig("Latent Space of Expert and Novice.png")
+    fig.savefig(os.path.join("outputs","Latent Space of Expert and Novice.png"))
     plt.show()    
 
-train_embedd = np.load("train.npy", allow_pickle=True)
-test_embedd = np.load("test.npy", allow_pickle=True)
+train_embedd = np.load(os.path.join("outputs","train.npy"), allow_pickle=True)
+test_embedd = np.load(os.path.join("outputs","test.npy"), allow_pickle=True)
 
 plot_data = dict(train=[train_embedd,'red','expert'],
                  test=[test_embedd,'blue','novice'])
