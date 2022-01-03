@@ -1,5 +1,6 @@
 import torch
 import wandb
+import warnings
 import numpy as np
 import pandas as pd
 import torch.nn as nn
@@ -8,8 +9,9 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 from torch.utils.data import Dataset, DataLoader
 from pytorch_lightning.loggers import WandbLogger
-from sklearn.model_selection import train_test_split
 from pytorch_lightning import Trainer, seed_everything
+
+warnings.filterwarnings("ignore")
 
 wandb.login()
 
@@ -21,25 +23,18 @@ class CraneDataset(Dataset):
         return len(self.X)
     
     def __getitem__(self, index):
-        return torch.tensor(self.X[index]).float(), torch.tensor(self.X[index]).float()
+        return self.X[index], self.X[index]
     
-class CraneDatasetModule(pl.LightningDataModule):
-    def __init__(self, seq_len, batch_size, num_workers=8):
-        super().__init__()
+class CraneDatasetModule():
+    def __init__(self, seq_len, batch_size, num_workers=2):
         self.seq_len = seq_len
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.X_train = None
-        self.X_val = None
         self.X_test = None
         self.columns = None
         self.preprocessing = None
         
-    def prepare_data(self):
-        pass
-    
-    def setup(self, stage=None):
-             
         data_path = "features_to_train.csv"
         
         df = pd.read_csv(data_path)
@@ -58,28 +53,16 @@ class CraneDatasetModule(pl.LightningDataModule):
                 if sess in best_sess:
                     X_train.append(sess_feat.iloc[i:i+self.seq_len,:][train_feats].values)
                 else:
-                    X_test.append(sess_feat.iloc[i:i+self.seq_len,:][train_feats].values)    
-                  
-        X_val, X_test = train_test_split(X_test, test_size=0.2, shuffle=False)
-        
-        if stage == 'fit' or stage is None:
-            self.X_train = X_train
-            self.X_val = X_val
-        
-        if stage == 'test' or stage is None:
-            self.X_test = X_test  
+                    X_test.append(sess_feat.iloc[i:i+self.seq_len,:][train_feats].values)
+                    
+        self.X_train = torch.tensor(X_train).float()
+        self.X_test = torch.tensor(X_test).float()                
             
     def train_dataloader(self):
         train_dataset = CraneDataset(self.X_train)
         train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers)
         
         return train_loader
-    
-    def val_dataloader(self):
-        val_dataset = CraneDataset(self.X_val)
-        val_loader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
-        
-        return val_loader
     
     def test_dataloader(self):
         test_dataset = CraneDataset(self.X_test)
@@ -202,6 +185,9 @@ class LSTMPredictor(pl.LightningModule):
         self.log('test/total_loss', loss, on_epoch=True)
         return loss
     
+    def predict_step(self, batch, batch_idx):
+        return self(batch)
+    
 p = dict(
     seq_len = 8,
     batch_size = 8,
@@ -211,6 +197,13 @@ p = dict(
     num_layers = 1,
     learning_rate = 0.001
 )       
+dm = CraneDatasetModule(
+    seq_len = p['seq_len'],
+    batch_size = p['batch_size']
+) 
+
+train_loader = dm.train_dataloader()
+test_loader = dm.test_dataloader()
 
 seed_everything(1)
 
@@ -228,17 +221,25 @@ model = LSTMPredictor(
     num_layers = p['num_layers'],
     learning_rate = p['learning_rate']
 )
+       
+trainer.fit(model, train_loader, test_loader)
+trainer.test(model, test_dataloaders=test_loader)  
+    
+model.cuda()
+model.eval()
 
-dm = CraneDatasetModule(
-    seq_len = p['seq_len'],
-    batch_size = p['batch_size']
-)        
+def get_sample(data):
+    samples = []
+    for d in data:
+        _, mu, _ = model(d.unsqueeze(0).to(model.device))
+        samples.append(mu)
+    return samples    
 
-trainer.fit(model, dm)
-trainer.test(datamodule=dm)        
-                                  
+with torch.no_grad():
+    train_pred = get_sample(dm.X_train)
+    test_pred = get_sample(dm.X_test)
+
+np.save("train.npy", np.array(train_pred))
+np.save("test.npy", np.array(test_pred))
+    
 wandb.finish()                       
-
-
-                                 
-
