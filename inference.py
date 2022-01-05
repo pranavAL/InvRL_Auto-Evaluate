@@ -69,7 +69,7 @@ with torch.no_grad():
         sess_feat = df.loc[df["Session id"]==sess,:]
         for j in range(0,len(sess_feat) - p['seq_len']):
             ax = plot_sample(torch.tensor(sess_feat.iloc[j:j+p['seq_len'],:][train_feats].values).float(), ax, color_cycle[i])
-        patches.append(mpatches.Patch(color=color_cycle[i], label=f"Rank {i+1}"))   
+        patches.append(mpatches.Patch(color=color_cycle[i], label=f"Score {sorted_sess[sess]}"))   
         
     ax.legend(handles=patches)         
     ax.axis('equal')
