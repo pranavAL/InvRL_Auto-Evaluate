@@ -1,6 +1,30 @@
 import os
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
+from train_LSTM import LSTMPredictor
+
+checkpoint_path = os.path.join('save_model','checkpoints')
+model = LSTMPredictor.load_from_checkpoint()
+model.cuda()
+model.eval()
+print(model.learning_rate)
+def get_sample(data, penalty=None):
+    samples = []
+    for i,d in enumerate(data):
+        _, mu, _ = model(d.unsqueeze(0).to(model.device))
+        if penalty is None:
+            samples.append(mu)
+        else:
+            samples.append((mu,penalty[i]))   
+    return samples    
+
+with torch.no_grad():
+    train_pred = get_sample(dm.X_train)
+    test_pred = get_sample(dm.X_test, dm.Y_penalty)
+
+np.save(os.path.join("outputs","train.npy"), np.array(train_pred))
+np.save(os.path.join("outputs","test.npy"), np.array(test_pred))
 
 def get_numpy(x):
     return x.squeeze().to('cpu').detach().numpy()

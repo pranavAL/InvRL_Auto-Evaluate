@@ -9,3 +9,4 @@ lit-wandb
 None
 .vscode
 .ipynb_checkpoints
+__pycache__

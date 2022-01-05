@@ -14,8 +14,6 @@ from pytorch_lightning import Trainer, seed_everything
 
 warnings.filterwarnings("ignore")
 
-wandb.login()
-
 class CraneDataset(Dataset):
     def __init__(self, X: np.ndarray):
         self.X = X
@@ -35,7 +33,6 @@ class CraneDatasetModule():
         self.X_test = None
         self.columns = None
         self.preprocessing = None
-        self.Y_penalty = None
         
         data_path = os.path.join("datasets","features_to_train.csv")
         
@@ -47,9 +44,10 @@ class CraneDatasetModule():
         df.loc[:,train_feats] = (df.loc[:,train_feats] - df.loc[:,train_feats].min())/(df.loc[:,train_feats].max() - df.loc[:,train_feats].min())
         
         best_sess = [sess for sess in df["Session id"].unique() if df.loc[df["Session id"]==sess,"Current trainee score at that time"].min()==0]
+        
         X_train = []
         X_test = []
-        Y_penalty = []
+        
         for sess in df["Session id"].unique():
             sess_feat = df.loc[df["Session id"]==sess,:]
             for i in range(0,len(sess_feat) - self.seq_len):
@@ -57,13 +55,9 @@ class CraneDatasetModule():
                     X_train.append(sess_feat.iloc[i:i+self.seq_len,:][train_feats].values)
                 else:
                     X_test.append(sess_feat.iloc[i:i+self.seq_len,:][train_feats].values)
-                    Y_penalty.append(sess_feat.iloc[i:i+self.seq_len,:]["Current trainee score at that time"].sum())
                     
         self.X_train = torch.tensor(X_train).float()
-        self.X_test = torch.tensor(X_test).float()  
-        print(len(self.X_train))
-        print(len(self.X_test))
-        self.Y_penalty = Y_penalty                      
+        self.X_test = torch.tensor(X_test).float()     
             
     def train_dataloader(self):
         train_dataset = CraneDataset(self.X_train)
@@ -180,7 +174,7 @@ class LSTMPredictor(pl.LightningModule):
         self.log('val/kld', kld, on_epoch=True)
         self.log('val/total_loss', loss, on_epoch=True)
         return loss
-    
+        
     def test_step(self, batch, batch_idx):
         x, y = batch
         y_hat, mu, logvar = self(x)
@@ -191,9 +185,6 @@ class LSTMPredictor(pl.LightningModule):
         self.log('test/kld', kld, on_epoch=True)
         self.log('test/total_loss', loss, on_epoch=True)
         return loss
-    
-    def predict_step(self, batch, batch_idx):
-        return self(batch)
     
 p = dict(
     seq_len = 8,
@@ -209,47 +200,34 @@ dm = CraneDatasetModule(
     batch_size = p['batch_size']
 ) 
 
-train_loader = dm.train_dataloader()
-test_loader = dm.test_dataloader()
-
-seed_everything(1)
-
-wandb_logger = WandbLogger(project="lit-wandb")
-trainer = Trainer(max_epochs=p['max_epochs'],
-                  gpus = 1,
-                  logger=wandb_logger,
-                  log_every_n_steps=5)    
-
-model = LSTMPredictor(
-    n_features = p['n_features'],
-    embedding_dim = p['embedding_dim'],
-    seq_len = p['seq_len'],
-    batch_size = p['batch_size'],
-    num_layers = p['num_layers'],
-    learning_rate = p['learning_rate']
-)
-       
-trainer.fit(model, train_loader, test_loader)
-trainer.test(model, test_dataloaders=test_loader)  
+if __name__ == "__main__":
     
-model.cuda()
-model.eval()
-
-def get_sample(data, penalty=None):
-    samples = []
-    for i,d in enumerate(data):
-        _, mu, _ = model(d.unsqueeze(0).to(model.device))
-        if penalty is None:
-            samples.append(mu)
-        else:
-            samples.append((mu,penalty[i]))   
-    return samples    
-
-with torch.no_grad():
-    train_pred = get_sample(dm.X_train)
-    test_pred = get_sample(dm.X_test, dm.Y_penalty)
-
-np.save(os.path.join("outputs","train.npy"), np.array(train_pred))
-np.save(os.path.join("outputs","test.npy"), np.array(test_pred))
+    model_path = os.path.join('save_model','lstm_vae.pth')
+    wandb.login()
     
-wandb.finish()                       
+    train_loader = dm.train_dataloader()
+    test_loader = dm.test_dataloader()
+
+    seed_everything(1)
+
+    wandb_logger = WandbLogger(project="lit-wandb")
+    trainer = Trainer(max_epochs=p['max_epochs'],
+                    gpus = 1,
+                    logger=wandb_logger,
+                    log_every_n_steps=5)    
+
+    model = LSTMPredictor(
+        n_features = p['n_features'],
+        embedding_dim = p['embedding_dim'],
+        seq_len = p['seq_len'],
+        batch_size = p['batch_size'],
+        num_layers = p['num_layers'],
+        learning_rate = p['learning_rate']
+    )
+        
+    trainer.fit(model, train_loader, test_loader)
+    trainer.test(model, test_dataloaders=test_loader)  
+
+    torch.save(model.state_dict(), model_path)
+        
+    wandb.finish()                       
