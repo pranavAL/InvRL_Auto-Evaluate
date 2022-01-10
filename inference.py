@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from train_LSTM import LSTMPredictor
 import matplotlib.patches as mpatches
 
-color_cycle = [(1-i,0,0+i) for i in np.arange(0,1,0.09)]
+color_cycle = [(1,0,0),(0,1,0),(0,0,1),(1,1,0),(0,1,1)]
               
 random.shuffle(color_cycle)              
 
