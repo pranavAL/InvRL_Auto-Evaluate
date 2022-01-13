@@ -1,6 +1,7 @@
 import os
 import torch
 import wandb
+import argparse
 import warnings
 import numpy as np
 import pandas as pd
@@ -185,25 +186,37 @@ class LSTMPredictor(pl.LightningModule):
         self.log('test/kld', kld, on_epoch=True)
         self.log('test/total_loss', loss, on_epoch=True)
         return loss
-    
-p = dict(
-    seq_len = 8,
-    batch_size = 8,
-    max_epochs = 100,
-    n_features = 9,
-    embedding_dim = 4,
-    num_layers = 1,
-    learning_rate = 0.001
-)       
-dm = CraneDatasetModule(
-    seq_len = p['seq_len'],
-    batch_size = p['batch_size']
-) 
-
+ 
 if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(description="Hyperparameter Values")
+    parser.add_argument('-sq','--seq_len', type=int, help="Sequence Length for input to LSTM")
+    parser.add_argument('-bs','--batch_size', type=int, default=8, help="Batch Size")
+    parser.add_argument('-me','--max_epochs', type=int, default=100, help="Number of epchs to train")
+    parser.add_argument('-nf','--n_features', type=int, default=9, help="Length of feature for each sample")
+    parser.add_argument('-ed','--embedding_dim', type=int, default=4, help="Dimension of Sample Space")
+    parser.add_argument('-nl','--num_layers', type=int, default=1, help="Number of LSTM layers")
+    parser.add_argument('-lr','--learning_rate', type=float, default=0.001, help="Neural Network Learning Rate")
+    args = parser.parse_args()
     
-    model_path = os.path.join('save_model','lstm_vae.pth')
+    
+    p = dict(
+    seq_len = args.seq_len,
+    batch_size = args.batch_size,
+    max_epochs = args.max_epochs,
+    n_features = args.n_features,
+    embedding_dim = args.embedding_dim,
+    num_layers = args.num_layers,
+    learning_rate = args.learning_rate
+)       
+    dm = CraneDatasetModule(
+        seq_len = p['seq_len'],
+        batch_size = p['batch_size']
+    ) 
+    
+    model_path = os.path.join('save_model',f"{p['seq_len']}seq_lstm_vae.pth")
     wandb.login()
+    wandb.init(name = f"{p['seq_len']}seq_lstm_vae")
     
     train_loader = dm.train_dataloader()
     test_loader = dm.test_dataloader()
