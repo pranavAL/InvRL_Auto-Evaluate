@@ -1,17 +1,24 @@
 import os
 import torch
 import random
+import argparse
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from train_LSTM import LSTMPredictor
 import matplotlib.patches as mpatches
 
-color_cycle = [(1,0,0),(0,1,0),(0,0,1),(1,1,0),(0,1,1)]
-              
-random.shuffle(color_cycle)              
+color_cycle = [(1,0,0),(0,0,1),(1,1,0),(0,1,1),(1,0,1),(0,1,0),
+            (0.5,0,0),(0,0,0.5),(0.5,0.5,0),(0,0.5,0.5),(0.5,0,0.5), (0,0.5,0),
+            (0.25,0,0),(0,0,0.25),(0.25,0.25,0),(0,0.25,0.25),(0.25,0,0.25),(0,0.25,0)]
 
-model_path = os.path.join('save_model','lstm_vae.pth')
+parser = argparse.ArgumentParser(description="Save models")
+parser.add_argument('-mp', '--model_path', type=str, help="Saved model path")
+parser.add_argument('-sess', '--sessions', type=int, help="Number of Sessions to compare")
+args = parser.parse_args()
+
+model_name = args.model_path.split('.')[0]
+model_path = os.path.join('save_model', args.model_path)
 df = pd.read_csv(os.path.join("datasets","features_to_train.csv"))
 
 train_feats = ['Bucket Angle','Bucket Height','Engine Average Power','Current Engine Power','Engine Torque', 'Engine Torque Average',
@@ -44,11 +51,11 @@ model.eval()
 
 def sort_sessions(data):
     sorted_sess = {}
-    
+
     for sess in data['Session id'].unique():
         sorted_sess[sess] = data.loc[data['Session id']==sess,"Current trainee score at that time"].sum()
     sorted_sess = dict(sorted(sorted_sess.items(), key = lambda x:x[1], reverse=True))
-    
+
     return sorted_sess
 
 def get_numpy(x):
@@ -65,13 +72,16 @@ sorted_sess = sort_sessions(df)
 with torch.no_grad():
     fig, ax = plt.subplots()
     patches = []
-    for i, sess in enumerate(list(sorted_sess.keys())[:5]):
+    for i, sess in enumerate(list(sorted_sess.keys())[:args.sessions]):
         sess_feat = df.loc[df["Session id"]==sess,:]
         for j in range(0,len(sess_feat) - p['seq_len']):
-            ax = plot_sample(torch.tensor(sess_feat.iloc[j:j+p['seq_len'],:][train_feats].values).float(), ax, color_cycle[i])
-        patches.append(mpatches.Patch(color=color_cycle[i], label=f"Score {sorted_sess[sess]}"))   
-        
-    ax.legend(handles=patches)         
+            features = sess_feat.iloc[j:j+p['seq_len'],:][train_feats].values
+            score = sum(sess_feat.iloc[j:j+p['seq_len'],:]["Current trainee score at that time"].values)
+            if score < 0 or i < 2:
+                ax = plot_sample(torch.tensor(features).float(), ax, color_cycle[i])
+        patches.append(mpatches.Patch(color=color_cycle[i], label=f"Score {sorted_sess[sess]}"))
+
+    ax.legend(handles=patches)
     ax.axis('equal')
-    plt.savefig(os.path.join('outputs',"Ranking the user based on latent space.png"))
-    plt.show()  
+    #plt.savefig(os.path.join('outputs',f"{model_name}.png"))
+    plt.show()
