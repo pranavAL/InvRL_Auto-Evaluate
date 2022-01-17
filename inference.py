@@ -8,9 +8,10 @@ import matplotlib.pyplot as plt
 from train_LSTM import LSTMPredictor
 import matplotlib.patches as mpatches
 
-color_cycle = [(1,0,0),(0,0,1),(1,1,0),(0,1,1),(1,0,1),(0,1,0),
-            (0.5,0,0),(0,0,0.5),(0.5,0.5,0),(0,0.5,0.5),(0.5,0,0.5), (0,0.5,0),
-            (0.25,0,0),(0,0,0.25),(0.25,0.25,0),(0,0.25,0.25),(0.25,0,0.25),(0,0.25,0)]
+color_cycle = {0.0: (1,0,0),-10.0: (0,0,1),-2.0: (1,1,0),-5.0:
+              (0,1,1),-9.0: (1,0,1),-18.0: (0,1,0),
+            -11.0: (0.5,0,0),-7.0: (0,0,0.5),-32.0: (0.5,0.5,0),
+            -15.0: (0,0.5,0.5),-16.0: (0,0.5,0),-20:(0.5,0,0.5)}
 
 parser = argparse.ArgumentParser(description="Save models")
 parser.add_argument('-mp', '--model_path', type=str, help="Saved model path")
@@ -72,16 +73,22 @@ sorted_sess = sort_sessions(df)
 with torch.no_grad():
     fig, ax = plt.subplots()
     patches = []
+    uniq_scores = []
     for i, sess in enumerate(list(sorted_sess.keys())[:args.sessions]):
         sess_feat = df.loc[df["Session id"]==sess,:]
-        for j in range(0,len(sess_feat) - p['seq_len']):
+        iter  = (1 if i < 2 else p['seq_len'])
+        for j in range(0,len(sess_feat) - p['seq_len'], iter):
             features = sess_feat.iloc[j:j+p['seq_len'],:][train_feats].values
             score = sum(sess_feat.iloc[j:j+p['seq_len'],:]["Current trainee score at that time"].values)
-            if score < 0 or i < 2:
-                ax = plot_sample(torch.tensor(features).float(), ax, color_cycle[i])
-        patches.append(mpatches.Patch(color=color_cycle[i], label=f"Score {sorted_sess[sess]}"))
+            if score not in uniq_scores:
+                uniq_scores.append(score)
 
-    ax.legend(handles=patches)
-    ax.axis('equal')
-    #plt.savefig(os.path.join('outputs',f"{model_name}.png"))
+            if score < 0 or i < 2:
+                ax = plot_sample(torch.tensor(features).float(), ax, color_cycle[score])
+
+    patches = [mpatches.Patch(color=color_cycle[score], label=f"Score {score}") for score in sorted(uniq_scores)]
+    ax.legend(handles=set(patches), loc='upper center', bbox_to_anchor=(0.4, 1.17),
+          ncol=3, fancybox=True, shadow=True)
+    # ax.axis('equal')
+    plt.savefig(os.path.join('outputs',f"penaltyplot{model_name}.png"))
     plt.show()
