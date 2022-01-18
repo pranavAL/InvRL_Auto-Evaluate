@@ -66,7 +66,7 @@ def get_numpy(x):
     return x.squeeze().to('cpu').detach().numpy()
 
 def plot_sample(data, ax, color):
-    _, mu, _ = model(data.unsqueeze(0).to(model.device))
+    recon, mu, _ = model(data.unsqueeze(0).to(model.device))
     mu = get_numpy(mu)
     ax.scatter(*mu, color=color)
     return ax
