@@ -89,6 +89,5 @@ with torch.no_grad():
     patches = [mpatches.Patch(color=color_cycle[score], label=f"Score {score}") for score in sorted(uniq_scores)]
     ax.legend(handles=set(patches), loc='upper center', bbox_to_anchor=(0.4, 1.17),
           ncol=3, fancybox=True, shadow=True)
-    # ax.axis('equal')
     plt.savefig(os.path.join('outputs',f"penaltyplot{model_name}.png"))
     plt.show()
