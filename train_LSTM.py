@@ -27,7 +27,7 @@ class CraneDataset(Dataset):
         return self.X[index], self.Y[index]
 
 class CraneDatasetModule():
-    def __init__(self, seq_len, batch_size, num_workers=2):
+    def __init__(self, seq_len, batch_size, model_type, num_workers=2):
         self.seq_len = seq_len
         self.batch_size = batch_size
         self.num_workers = num_workers
@@ -35,6 +35,7 @@ class CraneDatasetModule():
         self.Y_train = None
         self.X_test = None
         self.Y_test = None
+        self.model_type = model_type
 
         data_path = os.path.join("datasets","features_to_train.csv")
 
@@ -54,13 +55,20 @@ class CraneDatasetModule():
 
         for sess in df["Session id"].unique():
             sess_feat = df.loc[df["Session id"]==sess,:]
-            for i in range(0,len(sess_feat) - (2*self.seq_len)):
+            terminate = (2*self.seq_len if self.model_type=="Forced" else self.seq_len)
+            for i in range(0,len(sess_feat) - terminate):
                 if sess in best_sess:
                     X_train.append(sess_feat.iloc[i:i+self.seq_len,:][train_feats].values)
-                    Y_train.append(sess_feat.iloc[(i+self.seq_len)-1:(i+(2*self.seq_len))-1,:][train_feats].values)
+                    if self.model_type=="Forced":
+                        Y_train.append(sess_feat.iloc[(i+self.seq_len)-1:(i+(2*self.seq_len))-1,:][train_feats].values)
+                    else:
+                        Y_train = X_train
                 else:
                     X_test.append(sess_feat.iloc[i:i+self.seq_len,:][train_feats].values)
-                    Y_test.append(sess_feat.iloc[(i+self.seq_len)-1:(i+(2*self.seq_len))-1,:][train_feats].values)
+                    if self.model_type=="Forced":
+                        Y_test.append(sess_feat.iloc[(i+self.seq_len)-1:(i+(2*self.seq_len))-1,:][train_feats].values)
+                    else:
+                        Y_test = X_test
 
         self.X_train = torch.tensor(X_train).float()
         self.Y_train = torch.tensor(Y_train).float()
@@ -109,10 +117,11 @@ class Encoder(nn.Module):
         return z, mu, logvar
 
 class Decoder(nn.Module):
-    def __init__(self, input_dim, seq_len, num_layers, n_features):
+    def __init__(self, input_dim, seq_len, num_layers, n_features, model_type):
         super(Decoder, self).__init__()
         self.n_features = n_features
         self.seq_len, self.input_dim = seq_len, input_dim
+        self.model_type = model_type
 
         self.initial_layer = nn.Linear(self.input_dim, self.n_features)
 
@@ -124,23 +133,35 @@ class Decoder(nn.Module):
 
     def forward(self, x, last_feat):
 
-        out = last_feat.unsqueeze(0)
-        batch_size = out.size()[1]
+        if self.model_type=="Forced":
 
-        hidden = self.initial_layer(x)
-        cell = self.initial_layer(x)
-        outputs = torch.zeros(self.seq_len, batch_size, self.n_features).cuda()
+            out = last_feat.unsqueeze(0)
+            batch_size = out.size()[1]
 
-        for i in range(self.seq_len):
-            out, (hidden, cell) = self.lstm(out, (hidden, cell))
-            self.output_layer(out)
-            outputs[i] = out
+            hidden = self.initial_layer(x)
+            cell = self.initial_layer(x)
+            outputs = torch.zeros(self.seq_len, batch_size, self.n_features).cuda()
 
-        outputs = outputs.reshape((batch_size, self.seq_len, self.n_features))
+            for i in range(self.seq_len):
+                out, (hidden, cell) = self.lstm(out, (hidden, cell))
+                self.output_layer(out)
+                outputs[i] = out
+
+            outputs = outputs.reshape((batch_size, self.seq_len, self.n_features))
+
+        else:
+            x = self.initial_layer(x)
+            x = x.repeat(self.seq_len, 1, 1)
+            x = x.reshape((-1, self.seq_len, self.n_features))
+
+            out, _ = self.lstm(x)
+            out = out.reshape((-1, self.seq_len, self.n_features))
+            outputs = self.output_layer(out)
+
         return outputs
 
 class LSTMPredictor(pl.LightningModule):
-    def __init__(self, n_features, embedding_dim, seq_len, batch_size, num_layers, learning_rate):
+    def __init__(self, n_features, embedding_dim, seq_len, batch_size, num_layers, learning_rate, model_type):
         super(LSTMPredictor,self).__init__()
         self.n_features = n_features
         self.embedding_dim = embedding_dim
@@ -151,7 +172,7 @@ class LSTMPredictor(pl.LightningModule):
         self.latent_spc = int(embedding_dim / 2)
 
         self.encoder = Encoder(n_features, embedding_dim, seq_len, num_layers)
-        self.decoder = Decoder(self.latent_spc, seq_len, self.num_layers, n_features)
+        self.decoder = Decoder(self.latent_spc, seq_len, self.num_layers, n_features, model_type)
 
         self.save_hyperparameters()
 
@@ -200,7 +221,7 @@ class LSTMPredictor(pl.LightningModule):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Hyperparameter Values")
-    parser.add_argument('-mt', '--model_type', type=str, help="Teacher Forcing or reconstruct same output")
+    parser.add_argument('-mt', '--model_type', type=str, help="Normal or Teacher Forcing")
     parser.add_argument('-sq','--seq_len', type=int, help="Sequence Length for input to LSTM")
     parser.add_argument('-bs','--batch_size', type=int, default=8, help="Batch Size")
     parser.add_argument('-me','--max_epochs', type=int, default=100, help="Number of epchs to train")
@@ -209,7 +230,6 @@ if __name__ == "__main__":
     parser.add_argument('-nl','--num_layers', type=int, default=1, help="Number of LSTM layers")
     parser.add_argument('-lr','--learning_rate', type=float, default=0.001, help="Neural Network Learning Rate")
     args = parser.parse_args()
-
 
     p = dict(
     seq_len = args.seq_len,
@@ -222,11 +242,12 @@ if __name__ == "__main__":
 )
     dm = CraneDatasetModule(
         seq_len = p['seq_len'],
-        batch_size = p['batch_size']
+        batch_size = p['batch_size'],
+        model_type = args.model_type
     )
 
-    model_path = os.path.join('save_model',f"{p['seq_len']}seq_lstm_vae({args.mt}).pth")
-    wandb.init(name = f"{p['seq_len']}seq_lstm_vae(Recon_New_seq)")
+    model_path = os.path.join('save_model',f"{p['seq_len']}seq_lstm_vae_{args.model_type}_.pth")
+    wandb.init(name = f"{p['seq_len']}seq_lstm_vae_Recon_New_seq_{args.model_type}_")
 
     train_loader = dm.train_dataloader()
     test_loader = dm.test_dataloader()
@@ -245,7 +266,8 @@ if __name__ == "__main__":
         seq_len = p['seq_len'],
         batch_size = p['batch_size'],
         num_layers = p['num_layers'],
-        learning_rate = p['learning_rate']
+        learning_rate = p['learning_rate'],
+        model_type = args.model_type
     )
 
     trainer.fit(model, train_loader, test_loader)

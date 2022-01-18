@@ -8,17 +8,19 @@ import matplotlib.pyplot as plt
 from train_LSTM import LSTMPredictor
 import matplotlib.patches as mpatches
 
-color_cycle = {0.0: (1,0,0),-10.0: (0,0,1),-2.0: (1,1,0),-5.0:
-              (0,1,1),-9.0: (1,0,1),-18.0: (0,1,0),
-            -11.0: (0.5,0,0),-7.0: (0,0,0.5),-32.0: (0.5,0.5,0),
-            -15.0: (0,0.5,0.5),-16.0: (0,0.5,0),-20:(0.5,0,0.5)}
+color_cycle = [(1,0,0),(0,0,1),(1,1,0),(0,1,1),(1,0,1),(0,1,0),
+             (0.5,0,0),(0,0,0.5),(0.5,0.5,0),(0,0.5,0.5),
+             (0,0.5,0),(0.5,0,0.5),(0.25,0,0.25),(0,0,0.25),
+             (0.25,0,0)]
 
 parser = argparse.ArgumentParser(description="Save models")
 parser.add_argument('-mp', '--model_path', type=str, help="Saved model path")
 parser.add_argument('-sess', '--sessions', type=int, help="Number of Sessions to compare")
+parser.add_argument('-ts', '--to_save', type=bool, help="To save image or not")
 args = parser.parse_args()
 
-model_name = args.model_path.split('.')[0]
+model_name = f"{args.model_path.split('.')[0]}"
+model_type = model_name.split('_')[3]
 model_path = os.path.join('save_model', args.model_path)
 df = pd.read_csv(os.path.join("datasets","features_to_train.csv"))
 
@@ -43,7 +45,8 @@ model = LSTMPredictor(
     seq_len = p['seq_len'],
     batch_size = p['batch_size'],
     num_layers = p['num_layers'],
-    learning_rate = p['learning_rate']
+    learning_rate = p['learning_rate'],
+    model_type = model_type
 )
 
 model.load_state_dict(torch.load(model_path))
@@ -68,26 +71,33 @@ def plot_sample(data, ax, color):
     ax.scatter(*mu, color=color)
     return ax
 
+def plot(ax, patches, save):
+    ax.legend(handles=patches, loc='best',
+          ncol=3, fancybox=True, shadow=True)
+    if save:
+        plt.savefig(os.path.join('outputs',f"{model_name}.png"))
+    plt.title(model_name)
+    plt.show()
+
+def plot_by_session(sess_feat, sorted_sess, ax, patches, i):
+
+    for j in range(0,len(sess_feat) - p['seq_len']):
+        score = sum(sess_feat.iloc[j:j+p['seq_len'],:]["Current trainee score at that time"].values)
+        ax = plot_sample(torch.tensor(sess_feat.iloc[j:j+p['seq_len'],:][train_feats].values).float(), ax, color_cycle[i])
+    patches.append(mpatches.Patch(color=color_cycle[i], label=f"Score {sorted_sess[sess]}"))
+
+    return ax, patches
+
 sorted_sess = sort_sessions(df)
 
 with torch.no_grad():
     fig, ax = plt.subplots()
     patches = []
     uniq_scores = []
+
     for i, sess in enumerate(list(sorted_sess.keys())[:args.sessions]):
         sess_feat = df.loc[df["Session id"]==sess,:]
-        iter  = (1 if i < 2 else p['seq_len'])
-        for j in range(0,len(sess_feat) - p['seq_len'], iter):
-            features = sess_feat.iloc[j:j+p['seq_len'],:][train_feats].values
-            score = sum(sess_feat.iloc[j:j+p['seq_len'],:]["Current trainee score at that time"].values)
-            if score not in uniq_scores:
-                uniq_scores.append(score)
 
-            if score < 0 or i < 2:
-                ax = plot_sample(torch.tensor(features).float(), ax, color_cycle[score])
+        ax, patches = plot_by_session(sess_feat, sorted_sess, ax, patches, i)
 
-    patches = [mpatches.Patch(color=color_cycle[score], label=f"Score {score}") for score in sorted(uniq_scores)]
-    ax.legend(handles=set(patches), loc='upper center', bbox_to_anchor=(0.4, 1.17),
-          ncol=3, fancybox=True, shadow=True)
-    plt.savefig(os.path.join('outputs',f"penaltyplot{model_name}.png"))
-    plt.show()
+    plot(ax, patches, args.to_save)
