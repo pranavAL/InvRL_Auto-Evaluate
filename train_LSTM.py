@@ -221,7 +221,7 @@ class LSTMPredictor(pl.LightningModule):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Hyperparameter Values")
-    parser.add_argument('-mt', '--model_type', type=str, help="Normal or Teacher Forcing")
+    parser.add_argument('-mt', '--model_type', type=str, help="Normal or Forced")
     parser.add_argument('-sq','--seq_len', type=int, help="Sequence Length for input to LSTM")
     parser.add_argument('-bs','--batch_size', type=int, default=8, help="Batch Size")
     parser.add_argument('-me','--max_epochs', type=int, default=100, help="Number of epchs to train")
