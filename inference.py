@@ -4,6 +4,7 @@ import random
 import argparse
 import numpy as np
 import pandas as pd
+from celluloid import Camera
 import matplotlib.pyplot as plt
 from train_LSTM import LSTMPredictor
 import matplotlib.patches as mpatches
@@ -16,7 +17,7 @@ color_cycle = [(1,0,0),(0,0,1),(1,1,0),(0,1,1),(1,0,1),(0,1,0),
 parser = argparse.ArgumentParser(description="Save models")
 parser.add_argument('-mp', '--model_path', type=str, help="Saved model path")
 parser.add_argument('-sess', '--sessions', type=int, help="Number of Sessions to compare")
-parser.add_argument('-ts', '--to_save', type=bool, help="To save image or not")
+parser.add_argument('-ts', '--to_save', type=bool, default=False, help="To save image or not")
 args = parser.parse_args()
 
 model_name = f"{args.model_path.split('.')[0]}"
@@ -79,11 +80,12 @@ def plot(ax, patches, save):
     plt.title(model_name)
     plt.show()
 
-def plot_by_session(sess_feat, sorted_sess, ax, patches, i):
+def plot_by_session(sess_feat, sorted_sess, ax, patches, i,camera):
 
     for j in range(0,len(sess_feat) - p['seq_len']):
         score = sum(sess_feat.iloc[j:j+p['seq_len'],:]["Current trainee score at that time"].values)
         ax = plot_sample(torch.tensor(sess_feat.iloc[j:j+p['seq_len'],:][train_feats].values).float(), ax, color_cycle[i])
+    camera.snap()
     patches.append(mpatches.Patch(color=color_cycle[i], label=f"Score {sorted_sess[sess]}"))
 
     return ax, patches
@@ -92,12 +94,15 @@ sorted_sess = sort_sessions(df)
 
 with torch.no_grad():
     fig, ax = plt.subplots()
+    camera = Camera(fig)
     patches = []
     uniq_scores = []
 
     for i, sess in enumerate(list(sorted_sess.keys())[:args.sessions]):
         sess_feat = df.loc[df["Session id"]==sess,:]
 
-        ax, patches = plot_by_session(sess_feat, sorted_sess, ax, patches, i)
+        ax, patches = plot_by_session(sess_feat, sorted_sess, ax, patches, i, camera)
 
     plot(ax, patches, args.to_save)
+    animation = camera.animate()
+    animation.save('animation.gif', fps=1)
