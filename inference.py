@@ -4,15 +4,15 @@ import random
 import argparse
 import numpy as np
 import pandas as pd
-from celluloid import Camera
 import matplotlib.pyplot as plt
 from train_LSTM import LSTMPredictor
 import matplotlib.patches as mpatches
+from celluloid import Camera
 
 color_cycle = [(1,0,0),(0,0,1),(1,1,0),(0,1,1),(1,0,1),(0,1,0),
              (0.5,0,0),(0,0,0.5),(0.5,0.5,0),(0,0.5,0.5),
              (0,0.5,0),(0.5,0,0.5),(0.25,0,0.25),(0,0,0.25),
-             (0.25,0,0)]
+             (0.25,0,0),(0,0,0)]
 
 parser = argparse.ArgumentParser(description="Save models")
 parser.add_argument('-mp', '--model_path', type=str, help="Saved model path")
@@ -70,39 +70,76 @@ def plot_sample(data, ax, color):
     recon, mu, _ = model(data.unsqueeze(0).to(model.device))
     mu = get_numpy(mu)
     ax.scatter(*mu, color=color)
-    return ax
+    return ax, mu
 
-def plot(ax, patches, save):
+def plot(ax, patches, save, sess_name, meta_data, is_animate, fig):
     ax.legend(handles=patches, loc='best',
           ncol=3, fancybox=True, shadow=True)
-    if save:
-        plt.savefig(os.path.join('outputs',f"{model_name}.png"))
-    plt.title(model_name)
-    plt.show()
 
-def plot_by_session(sess_feat, sorted_sess, ax, patches, i,camera):
+    plt.title(f"{model_name}")
+    plt.xlim([-0.075,0.05])
+    plt.ylim([-0.075,0.015])
+
+    if is_animate:
+        animate(meta_data, fig, ax)
+
+    if save:
+        plt.savefig(os.path.join('outputs',f"{sess_name}_{model_name}.png"))
+
+def plot_by_session(sess_feat, sorted_sess, ax, patches, i, sess, meta_data):
 
     for j in range(0,len(sess_feat) - p['seq_len']):
         score = sum(sess_feat.iloc[j:j+p['seq_len'],:]["Current trainee score at that time"].values)
-        ax = plot_sample(torch.tensor(sess_feat.iloc[j:j+p['seq_len'],:][train_feats].values).float(), ax, color_cycle[i])
-    camera.snap()
+        ax, mu = plot_sample(torch.tensor(sess_feat.iloc[j:j+p['seq_len'],:][train_feats].values).float(), ax, color_cycle[i])
+        meta_data.loc[len(meta_data)] = [i, mu[0], mu[1], score]
     patches.append(mpatches.Patch(color=color_cycle[i], label=f"Score {sorted_sess[sess]}"))
 
-    return ax, patches
+    return ax, patches, meta_data
+
+def plot_datas(num_sess, df, sorted_sess, type_data, save_meta_data, is_animate):
+
+    fig, ax = plt.subplots()
+    patches = []
+    uniq_scores = []
+    meta_data = pd.DataFrame(columns=['rank', 'coordX', 'coordY', 'penalty'])
+
+    for i, sess in enumerate(list(sorted_sess.keys())[:num_sess]):
+        sess_feat = df.loc[df["Session id"]==sess,:]
+        ax, patches, meta_data = plot_by_session(sess_feat, sorted_sess, ax, patches, i, sess, meta_data)
+
+    plot(ax, patches, args.to_save, type_data, meta_data, is_animate, fig)
+    if save_meta_data:
+        meta_data.to_csv(f"outputs/meta_data.csv")
+
+def getXYZ(meta_data, rank):
+    X = list(meta_data.loc[meta_data['rank']==rank,'coordX'].values)
+    Y = list(meta_data.loc[meta_data['rank']==rank,'coordY'].values)
+    Z = list(meta_data.loc[meta_data['rank']==rank,'penalty'].values)
+    score = sum(Z)
+    return X, Y, Z, score
+
+def animate(meta_data, fig, ax):
+    camera = Camera(fig)
+    meta_data = pd.read_csv(f"outputs/meta_data.csv")
+    all_sess = meta_data['rank'].unique()
+    expertsX1, expertsY1, _, _ = getXYZ(meta_data, 0)
+    expertsX2, expertsY2, _, _ = getXYZ(meta_data, 1)
+
+    for sess in all_sess[2:]:
+        X,Y,Z,score = getXYZ(meta_data, sess)
+        for (x,y,z) in zip(X, Y, Z):
+            plt.title(f"Rank: {sess}, Penalty: {z}, Total Score: {score}")
+            ax.scatter(expertsX1, expertsY1, color=(1,0,0))
+            ax.scatter(expertsX2, expertsY2, color=(0,0,1))
+            ax.scatter(x, y, color=(0,0,0))
+            camera.snap()
+
+    animate = camera.animate()
+    animate.save('output.mp4',fps=1)
 
 sorted_sess = sort_sessions(df)
 
 with torch.no_grad():
-    fig, ax = plt.subplots()
-    camera = Camera(fig)
-    patches = []
-    uniq_scores = []
 
-    for i, sess in enumerate(list(sorted_sess.keys())[:args.sessions]):
-        sess_feat = df.loc[df["Session id"]==sess,:]
-
-        ax, patches = plot_by_session(sess_feat, sorted_sess, ax, patches, i, camera)
-
-    plot(ax, patches, args.to_save)
-    animation = camera.animate()
-    animation.save('animation.gif', fps=1)
+    plot_datas(args.sessions, df,sorted_sess, type_data="all", save_meta_data=True, is_animate=False)
+    plot_datas(2, df,sorted_sess, type_data="best", save_meta_data=False, is_animate=True)
