@@ -11,10 +11,13 @@ import matplotlib.pyplot as plt
 from train_LSTM import LSTMPredictor
 import matplotlib.patches as mpatches
 
+cmd = 'ffmpeg -framerate 10 -y -i temp/%d.png -c:v libx264 -pix_fmt yuv420p outputs/output.mp4'
+
 color_cycle = [(1,0,0),(0,0,1),(1,1,0),(0,1,1),(1,0,1),(0,1,0),
              (0.5,0,0),(0,0,0.5),(0.5,0.5,0),(0,0.5,0.5),
              (0,0.5,0),(0.5,0,0.5),(0.25,0,0.25),(0,0,0.25),
-             (0.25,0,0),(0,0,0)]
+             (0.25,0,0),(1,0,0.75),(0.75,1,0),(0,0,0.75),
+             (0,0.75,0),(0.25,0,0.75)]
 
 frameSize = (640, 480)
 
@@ -130,7 +133,7 @@ def animate(meta_data, fig, ax, patches):
     expertsX2, expertsY2, _, _ = getXYZ(meta_data, 1)
     count = 0
 
-    for sess in all_sess[2:10]:
+    for sess in all_sess[2:args.sessions]:
         X,Y,Z,score = getXYZ(meta_data, sess)
         for (x,y,z) in zip(X, Y, Z):
             fig, ax = plt.subplots()
@@ -138,19 +141,15 @@ def animate(meta_data, fig, ax, patches):
                   ncol=3, fancybox=True, shadow=True)
             plt.xlim([-0.075,0.05])
             plt.ylim([-0.075,0.015])
-            plt.title(f"Rank: {sess}, Penalty: {z}, Total Score: {score}")
+            plt.title(f"Rank: {sess}, Penalty: {z}, Final Score: {score}")
             ax.scatter(expertsX1, expertsY1, color=(1,0,0))
             ax.scatter(expertsX2, expertsY2, color=(0,0,1))
             ax.scatter(x, y, color=(0,0,0))
             fig.savefig(f"temp/{count}.png")
+            plt.close()
             count+=1
-
-    out = cv2.VideoWriter(f'outputs/output_video.mp4',cv2.VideoWriter_fourcc(*'DIVX'), 10, frameSize)
-    for filename in sorted(glob.glob('temp/*.png'), key=lambda x: int(x.split('/')[1].split('.')[0])):
-        img = cv2.imread(filename)
-        out.write(img)
-    out.release()
-    shutil.rmtree('temp')
+    os.system(cmd)
+    shutil.rmtree(f"temp")
 
 sorted_sess = sort_sessions(df)
 
