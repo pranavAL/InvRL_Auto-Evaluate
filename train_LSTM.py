@@ -201,11 +201,14 @@ class LSTMPredictor(pl.LightningModule):
         rloss = F.mse_loss(y_hat, y_decod)
         kld = torch.mean(-0.5 * torch.sum(1 + logvar -mu.pow(2) - logvar.exp(), dim=1), dim=1)
         bce = nn.CrossEntropyLoss()(y_hat_rank, y_rank)
-        loss = rloss + kld + bce
+        loss = rloss + kld + bce*0
+        pred_rank = torch.argmax(y_hat_rank, dim=1)
+        accuracy = torch.sum(y_rank==pred_rank).item() / (len(y_rank) * 1.0)
         self.log('train/recon_loss', rloss, on_epoch=True)
         self.log('train/kld', kld, on_epoch=True)
         self.log('train/total_loss', loss, on_epoch=True)
         self.log('train/Classification_loss', bce, on_epoch=True)
+        self.log('train/Accuracy', accuracy, on_epoch=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -215,11 +218,14 @@ class LSTMPredictor(pl.LightningModule):
         rloss = F.mse_loss(y_hat, y_decod)
         kld = torch.mean(-0.5 * torch.sum(1 + logvar -mu.pow(2) - logvar.exp(), dim=1), dim=0)
         bce = nn.CrossEntropyLoss()(y_hat_rank, y_rank)
-        loss = rloss + kld + bce
+        loss = rloss + kld + bce*0
+        pred_rank = torch.argmax(y_hat_rank, dim=1)
+        accuracy = torch.sum(y_rank==pred_rank).item() / (len(y_rank) * 1.0)
         self.log('val/recon_loss', rloss, on_epoch=True)
         self.log('val/kld', kld, on_epoch=True)
         self.log('val/Classification_loss', bce, on_epoch=True)
         self.log('val/total_loss', loss, on_epoch=True)
+        self.log('val/Accuracy', accuracy, on_epoch=True)
         return loss
 
     def test_step(self, batch, batch_idx):
@@ -229,11 +235,14 @@ class LSTMPredictor(pl.LightningModule):
         rloss = F.mse_loss(y_hat, y_decod)
         kld = torch.mean(-0.5 * torch.sum(1 + logvar -mu.pow(2) - logvar.exp(), dim=1), dim=0)
         bce = nn.CrossEntropyLoss()(y_hat_rank, y_rank)
-        loss = rloss + kld + bce
+        loss = rloss + kld + bce*0
+        pred_rank = torch.argmax(y_hat_rank, dim=1)
+        accuracy = torch.sum(y_rank==pred_rank).item() / (len(y_rank) * 1.0)
         self.log('test/recon_loss', rloss, on_epoch=True)
         self.log('test/kld', kld, on_epoch=True)
         self.log('test/Classification_loss', bce, on_epoch=True)
         self.log('test/total_loss', loss, on_epoch=True)
+        self.log('test/Accuracy', accuracy, on_epoch=True)
         return loss
 
 if __name__ == "__main__":
