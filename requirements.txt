@@ -1,5 +1,4 @@
 absl-py==1.0.0
-actionlib==1.12.1
 aiohttp==3.8.1
 aiosignal==1.2.0
 angles==1.9.12
