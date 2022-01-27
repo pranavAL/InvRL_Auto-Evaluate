@@ -81,9 +81,21 @@ class CraneDatasetModule():
                 for i in range(0,len(sess_feat) - terminate):
                     train.append(sess_feat.iloc[i:i+self.seq_len,:][train_feats].values)
                     train_recon.append(sess_feat.iloc[(i+self.seq_len)-1:(i+(2*self.seq_len))-1,:][train_feats].values)
-                    train_class.append(sess2rank[sess])
+                    score = sess_feat["Current trainee score at that time"].sum()
+                    if score >= 0 and score<=10:
+                        train_class.append(0)
+                    elif score > 10 and score <=30:
+                        train_class.append(1)
+                    elif score > 30 and score <=50:
+                        train_class.append(2)
+                    elif score > 50 and score <=70:
+                        train_class.append(3)
+                    elif score >70 and score <=99:
+                        train_class.append(4)
+                    else:
+                        train_class.append(5)
 
-            return torch.tensor(np.array(train)).float(), torch.tensor(np.array(train_recon)).float(), torch.tensor(np.array(train_class)).float()
+            return torch.tensor(np.array(train)).float(), torch.tensor(np.array(train_recon)).float(), torch.tensor(np.array(train_class))
 
         self.X_train, self.Y_train_recon, self.Y_train_class = get_data(train_sess)
         self.X_test, self.Y_test_recon, self.Y_test_class = get_data(test_sess)
@@ -214,10 +226,15 @@ class LSTMPredictor(pl.LightningModule):
         y_hat_rank = y_hat_rank.squeeze(0)
         rloss = F.mse_loss(y_hat, y_decod)
         kld = torch.mean(-0.5 * torch.sum(1 + logvar -mu.pow(2) - logvar.exp(), dim=1), dim=1)
-        loss = rloss + kld
+        bce = nn.CrossEntropyLoss()(y_hat_rank, y_rank)
+        loss = rloss + kld + bce
+        pred_rank = torch.argmax(y_hat_rank, dim=1)
+        accuracy = torch.sum(y_rank==pred_rank).item() / (len(y_rank) * 1.0)
         self.log('train/recon_loss', rloss, on_epoch=True)
         self.log('train/kld', kld, on_epoch=True)
         self.log('train/total_loss', loss, on_epoch=True)
+        self.log('train/Classification_loss', bce, on_epoch=True)
+        self.log('train/Accuracy', accuracy, on_epoch=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -226,10 +243,15 @@ class LSTMPredictor(pl.LightningModule):
         y_hat_rank = y_hat_rank.squeeze(0)
         rloss = F.mse_loss(y_hat, y_decod)
         kld = torch.mean(-0.5 * torch.sum(1 + logvar -mu.pow(2) - logvar.exp(), dim=1), dim=0)
-        loss = rloss + kld
+        bce = nn.CrossEntropyLoss()(y_hat_rank, y_rank)
+        loss = rloss + kld + bce
+        pred_rank = torch.argmax(y_hat_rank, dim=1)
+        accuracy = torch.sum(y_rank==pred_rank).item() / (len(y_rank) * 1.0)
         self.log('val/recon_loss', rloss, on_epoch=True)
         self.log('val/kld', kld, on_epoch=True)
         self.log('val/total_loss', loss, on_epoch=True)
+        self.log('train/Classification_loss', bce, on_epoch=True)
+        self.log('train/Accuracy', accuracy, on_epoch=True)
         return loss
 
     def test_step(self, batch, batch_idx):
@@ -237,10 +259,15 @@ class LSTMPredictor(pl.LightningModule):
         y_hat, mu, logvar, y_hat_rank = self(x)
         rloss = F.mse_loss(y_hat, y_decod)
         kld = torch.mean(-0.5 * torch.sum(1 + logvar -mu.pow(2) - logvar.exp(), dim=1), dim=0)
-        loss = rloss + kld
+        bce = nn.CrossEntropyLoss()(y_hat_rank, y_rank)
+        loss = rloss + kld + bce
+        pred_rank = torch.argmax(y_hat_rank, dim=1)
+        accuracy = torch.sum(y_rank==pred_rank).item() / (len(y_rank) * 1.0)
         self.log('test/recon_loss', rloss, on_epoch=True)
         self.log('test/kld', kld, on_epoch=True)
         self.log('test/total_loss', loss, on_epoch=True)
+        self.log('train/Classification_loss', bce, on_epoch=True)
+        self.log('train/Accuracy', accuracy, on_epoch=True)
         return loss
 
 if __name__ == "__main__":
@@ -253,7 +280,7 @@ if __name__ == "__main__":
     parser.add_argument('-ls','--latent_spc', type=int,default=64, help='Size of Latent Space')
     parser.add_argument('-fcd','--fc_dim', type=int, default=256, help="Number of FC Nodes")
     parser.add_argument('-lr','--learning_rate', type=float, default=0.001, help="Neural Network Learning Rate")
-    parser.add_argument('-nc','--num_classes', type=int, default=40, help="Number of users")
+    parser.add_argument('-nc','--num_classes', type=int, default=6, help="Number of users")
     args = parser.parse_args()
 
     dm = CraneDatasetModule(
