@@ -133,7 +133,7 @@ def animate(meta_data):
         ax = plot_sample([x,y], ax, (0,0,0))
         #ax.legend(handles=patches, loc='best', ncol=3, fancybox=True, shadow=True)
         plt.title(f"Rank: {rank}, Penalty: {penalty}, Final Score: {final_score}")
-        fig.savefig(f"temp/{count}.png", bbox_inches='tight')
+        fig.savefig(f"temp/{count}.png")
         plt.close()
         count+=1
         if index > 5000:

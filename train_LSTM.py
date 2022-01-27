@@ -14,6 +14,22 @@ from pytorch_lightning import Trainer, seed_everything
 
 warnings.filterwarnings("ignore")
 
+train_sess = ['5f0f3da8b1a0e016c4054af3', '5f0f3ec0b1a0e016c4055f2d', '5efb9aacbcf5631c14097d5d',
+             '5f29aee75503690dc400e6ed', '5f298dab5503691770019164','5f0f357e55036922bc0394c1',
+             '5efb569b55036917a000facc','5efcedc85503691934046c9f', '5f0f1a78b1a0e016c4004474',
+             '5f0f197955036922bc0037ee','5efceb355503691934044c21','5f297b0ebcf56318600089bd',
+             '5f29aaa8bcf5631510003502','5f29ae6bb1a0e0078400bca5','5efcd5325503691934005efc',
+             '5f0f19c6bcf5631cc40054d5','5efb85bbbcf5631c14064bb7', '5f29af485503690dc400ebe9',
+             '5efc8090bcf56313bc00a9b3', '5efcd6dfbcf5631ce000acda','5f0f4d605503691a3800bc89',
+             '5f103d89bcf5630d0c0051a6']
+
+test_sess = ['5efcee755503691934047938', '5f16fba5bcf563077800defe', '5efca3fabcf56313bc030cd8',
+            '5f29c02dbcf56315100375fe','5f29adcab1a0e0078400b127', '5efb87a555036917a005aedb',
+            '5f103e4d550369051800826f', '5efb51adbcf5631c1400b415', '5f29af3db1a0e0078400cb36',
+            '5f0f52175503691a38012a4f', '5efb98f9bcf5631c1409582a', '5f29b2b95503690dc4013d20',
+            '5efca64d5503691c2c03f562', '5f0f4991bcf56303ec009f44',  '5f0f5715bcf56303ec02201e',
+            '5f104038bcf5630d0c008bd2', '5f297cbbb1a0e01b340062a1', '5f29ab9a5503690dc4009a73']
+
 class CraneDataset(Dataset):
     def __init__(self, X: np.ndarray, Y_recon: np.ndarray, Y_class: np.ndarray):
         self.X = X
@@ -47,32 +63,30 @@ class CraneDatasetModule():
         sorted_sess = dict(sorted(sorted_sess.items(), key = lambda x:x[1], reverse=True))
         sess2rank = {sess:i for i,sess in enumerate(sorted_sess)}
 
-        X = []
-        Y_recon = []
-        Y_rank = []
+        X_train = []
+        Y_train_recon = []
+        Y_train_class = []
 
-        for sess in df["Session id"].unique():
-            sess_feat = df.loc[df["Session id"]==sess,:]
-            terminate = 2*self.seq_len
-            for i in range(0,len(sess_feat) - terminate):
-                X.append(sess_feat.iloc[i:i+self.seq_len,:][train_feats].values)
-                Y_recon.append(sess_feat.iloc[(i+self.seq_len)-1:(i+(2*self.seq_len))-1,:][train_feats].values)
-                Y_rank.append(sess2rank[sess])
+        X_test = []
+        Y_test_recon = []
+        Y_test_class = []
 
-        X = np.array(X)
-        Y_recon = np.array(Y_recon)
-        Y_rank = np.array(Y_rank)
+        def get_data(t_sess):
+            train = []
+            train_recon = []
+            train_class = []
+            for sess in t_sess:
+                sess_feat = df.loc[df["Session id"]==sess,:]
+                terminate = 2*self.seq_len
+                for i in range(0,len(sess_feat) - terminate):
+                    train.append(sess_feat.iloc[i:i+self.seq_len,:][train_feats].values)
+                    train_recon.append(sess_feat.iloc[(i+self.seq_len)-1:(i+(2*self.seq_len))-1,:][train_feats].values)
+                    train_class.append(sess2rank[sess])
 
-        tot_indx = np.random.randint(low=0,high=len(X),size=len(X))
-        train_size = int(0.8 * len(X))
+            return torch.tensor(np.array(train)).float(), torch.tensor(np.array(train_recon)).float(), torch.tensor(np.array(train_class)).float()
 
-        X_train, X_test = X[tot_indx[:train_size]], X[tot_indx[train_size:]]
-        Y_train_recon, Y_test_recon = Y_recon[tot_indx[:train_size]], Y_recon[tot_indx[train_size:]]
-        Y_train_class, Y_test_class = Y_rank[tot_indx[:train_size]], Y_rank[tot_indx[train_size:]]
-
-        self.X_train, self.X_test = torch.tensor(X_train).float(), torch.tensor(X_test).float()
-        self.Y_train_recon, self.Y_test_recon = torch.tensor(Y_train_recon).float(), torch.tensor(Y_test_recon).float()
-        self.Y_train_class, self.Y_test_class = torch.tensor(Y_train_class), torch.tensor(Y_test_class)
+        self.X_train, self.Y_train_recon, self.Y_train_class = get_data(train_sess)
+        self.X_test, self.Y_test_recon, self.Y_test_class = get_data(test_sess)
 
     def train_dataloader(self):
         train_dataset = CraneDataset(self.X_train, self.Y_train_recon, self.Y_train_class)
@@ -200,15 +214,10 @@ class LSTMPredictor(pl.LightningModule):
         y_hat_rank = y_hat_rank.squeeze(0)
         rloss = F.mse_loss(y_hat, y_decod)
         kld = torch.mean(-0.5 * torch.sum(1 + logvar -mu.pow(2) - logvar.exp(), dim=1), dim=1)
-        bce = nn.CrossEntropyLoss()(y_hat_rank, y_rank)
-        loss = rloss + kld + bce*0
-        pred_rank = torch.argmax(y_hat_rank, dim=1)
-        accuracy = torch.sum(y_rank==pred_rank).item() / (len(y_rank) * 1.0)
+        loss = rloss + kld
         self.log('train/recon_loss', rloss, on_epoch=True)
         self.log('train/kld', kld, on_epoch=True)
         self.log('train/total_loss', loss, on_epoch=True)
-        self.log('train/Classification_loss', bce, on_epoch=True)
-        self.log('train/Accuracy', accuracy, on_epoch=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -217,32 +226,21 @@ class LSTMPredictor(pl.LightningModule):
         y_hat_rank = y_hat_rank.squeeze(0)
         rloss = F.mse_loss(y_hat, y_decod)
         kld = torch.mean(-0.5 * torch.sum(1 + logvar -mu.pow(2) - logvar.exp(), dim=1), dim=0)
-        bce = nn.CrossEntropyLoss()(y_hat_rank, y_rank)
-        loss = rloss + kld + bce*0
-        pred_rank = torch.argmax(y_hat_rank, dim=1)
-        accuracy = torch.sum(y_rank==pred_rank).item() / (len(y_rank) * 1.0)
+        loss = rloss + kld
         self.log('val/recon_loss', rloss, on_epoch=True)
         self.log('val/kld', kld, on_epoch=True)
-        self.log('val/Classification_loss', bce, on_epoch=True)
         self.log('val/total_loss', loss, on_epoch=True)
-        self.log('val/Accuracy', accuracy, on_epoch=True)
         return loss
 
     def test_step(self, batch, batch_idx):
         x, y_decod, y_rank = batch
         y_hat, mu, logvar, y_hat_rank = self(x)
-        y_hat_rank = y_hat_rank.squeeze(0)
         rloss = F.mse_loss(y_hat, y_decod)
         kld = torch.mean(-0.5 * torch.sum(1 + logvar -mu.pow(2) - logvar.exp(), dim=1), dim=0)
-        bce = nn.CrossEntropyLoss()(y_hat_rank, y_rank)
-        loss = rloss + kld + bce*0
-        pred_rank = torch.argmax(y_hat_rank, dim=1)
-        accuracy = torch.sum(y_rank==pred_rank).item() / (len(y_rank) * 1.0)
+        loss = rloss + kld
         self.log('test/recon_loss', rloss, on_epoch=True)
         self.log('test/kld', kld, on_epoch=True)
-        self.log('test/Classification_loss', bce, on_epoch=True)
         self.log('test/total_loss', loss, on_epoch=True)
-        self.log('test/Accuracy', accuracy, on_epoch=True)
         return loss
 
 if __name__ == "__main__":
@@ -263,8 +261,8 @@ if __name__ == "__main__":
         batch_size = args.batch_size
     )
 
-    model_path = os.path.join('save_model',f"{args.seq_len}seq_lstm_vae_.pth")
-    wandb.init(name = f"{args.seq_len}seq_lstm_vae_Recon_New_seq_")
+    model_path = os.path.join('save_model',f"{args.seq_len}seq_lstm_vae_bucket.pth")
+    wandb.init(name = f"{args.seq_len}seq_lstm_vae_Recon_New_seq_bucket")
 
     train_loader = dm.train_dataloader()
     test_loader = dm.test_dataloader()
