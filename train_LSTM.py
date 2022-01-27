@@ -249,9 +249,9 @@ class LSTMPredictor(pl.LightningModule):
         accuracy = torch.sum(y_rank==pred_rank).item() / (len(y_rank) * 1.0)
         self.log('val/recon_loss', rloss, on_epoch=True)
         self.log('val/kld', kld, on_epoch=True)
+        self.log('val/Classification_loss', bce, on_epoch=True)
+        self.log('val/Accuracy', accuracy, on_epoch=True)
         self.log('val/total_loss', loss, on_epoch=True)
-        self.log('train/Classification_loss', bce, on_epoch=True)
-        self.log('train/Accuracy', accuracy, on_epoch=True)
         return loss
 
     def test_step(self, batch, batch_idx):
@@ -265,9 +265,9 @@ class LSTMPredictor(pl.LightningModule):
         accuracy = torch.sum(y_rank==pred_rank).item() / (len(y_rank) * 1.0)
         self.log('test/recon_loss', rloss, on_epoch=True)
         self.log('test/kld', kld, on_epoch=True)
+        self.log('test/Classification_loss', bce, on_epoch=True)
+        self.log('test/Accuracy', accuracy, on_epoch=True)
         self.log('test/total_loss', loss, on_epoch=True)
-        self.log('train/Classification_loss', bce, on_epoch=True)
-        self.log('train/Accuracy', accuracy, on_epoch=True)
         return loss
 
 if __name__ == "__main__":
