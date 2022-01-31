@@ -46,18 +46,17 @@ def get_embeddings(input, label):
 
 for sess in df["Session id"].unique()[36:38]:
     sess_feat = df.loc[df["Session id"]==sess,:]
-    true = []
-    pred = []
-    terminate = 2*args.seq_len
-    for j in range(0,len(sess_feat)-terminate):
-        train = list(sess_feat.iloc[j:j+args.seq_len,:][train_feats].values)
-        label = list(sess_feat.iloc[j+args.seq_len-1:j+terminate-1,:][train_feats].values)
-        recon = get_embeddings(torch.tensor(train).float(), torch.tensor(label).float())
-        true.append(train[0][8])
-        pred.append(recon[0][8])
+
+    train = list(sess_feat.iloc[0:args.seq_len,:][train_feats].values)
+    label = list(sess_feat.iloc[args.seq_len:,:][train_feats].values)
+    init_label = list(sess_feat.iloc[args.seq_len-1,:][train_feats].values)
+    recon = get_embeddings(torch.tensor(train).float(), torch.tensor(init_label).float())
 
 fig, ax = plt.subplots()
-ax.plot(true, color='r', label="true")
-ax.plot(pred, color='b', label="pred")
+train = np.array(train)
+label = np.array(label)
+# ax.plot(train[:][0], color='r', label="Encoder")
+ax.plot(label[:,0], color='g', label="Label")
+ax.plot(recon[:,0], color='b', label="pred")
 ax.legend()
 plt.show()
