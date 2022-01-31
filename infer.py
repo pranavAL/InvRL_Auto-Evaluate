@@ -46,17 +46,25 @@ def get_embeddings(input, label):
 
 for sess in df["Session id"].unique()[36:38]:
     sess_feat = df.loc[df["Session id"]==sess,:]
+    terminate = args.seq_len
+    y_pred = []
+    x_input = []
+    for i in range(0,len(sess_feat)-terminate,terminate):
+        train = list(sess_feat.iloc[i:i+args.seq_len,:][train_feats].values)
+        init_label = list(sess_feat.iloc[i+args.seq_len-1,:][train_feats].values)
+        recon = get_embeddings(torch.tensor(train).float(), torch.tensor(init_label).float())
+        y_pred.append(recon)
+        x_input.append(train)
 
-    train = list(sess_feat.iloc[0:args.seq_len,:][train_feats].values)
-    label = list(sess_feat.iloc[args.seq_len:,:][train_feats].values)
-    init_label = list(sess_feat.iloc[args.seq_len-1,:][train_feats].values)
-    recon = get_embeddings(torch.tensor(train).float(), torch.tensor(init_label).float())
+fig, ax = plt.subplots(3,3)
+fig.set_size_inches(15, 10)
+train = np.reshape(np.array(x_input), (len(x_input)*args.seq_len, args.n_features))
+label = np.reshape(np.array(y_pred), (len(y_pred)*args.seq_len, args.n_features))
+for i in range(args.n_features):
+    ax[i//3,i%3].plot(train[:,i], color='r', label="Original")
+    ax[i//3,i%3].plot(label[:,i], color='b', label="Predicted")
+    ax[i//3,i%3].set_title(f"Feature {i}")
 
-fig, ax = plt.subplots()
-train = np.array(train)
-label = np.array(label)
-# ax.plot(train[:][0], color='r', label="Encoder")
-ax.plot(label[:,0], color='g', label="Label")
-ax.plot(recon[:,0], color='b', label="pred")
-ax.legend()
-plt.show()
+lines, labels = fig.axes[-1].get_legend_handles_labels()
+fig.legend(lines, labels, loc = 'upper center')
+plt.savefig(f"outputs/{args.seq_len}_steps_lookahead.png", dpi=100)
