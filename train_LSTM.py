@@ -97,6 +97,7 @@ class Encoder(nn.Module):
         self.fc1 = nn.Linear(self.fc_dim, self.fc_dim)
         self.ls1 = nn.Linear(self.fc_dim, self.latent_spc)
         self.ls2 = nn.Linear(self.fc_dim, self.latent_spc)
+        self.final = nn.Linear(self.latent_spc, self.n_features)
 
     def reparameterize(self, mu, logvar):
         std = torch.exp(0.5 * logvar)
@@ -109,48 +110,26 @@ class Encoder(nn.Module):
         out = self.elu(self.fc1(out))
         mu, logvar = self.ls1(out), self.ls2(out)
         z = self.reparameterize(mu, logvar)
+        z = self.elu(self.final(z))
         return z, mu, logvar
 
 class Decoder(nn.Module):
-    def __init__(self, seq_len, latent_spc, n_features, fc_dim, batch_size):
+    def __init__(self, n_features):
         super(Decoder, self).__init__()
         self.n_features = n_features
-        self.fc_dim = fc_dim
-        self.latent_spc = latent_spc
-        self.seq_len = seq_len
-        self.batch_size = batch_size
 
-        self.initial_layer = nn.Linear(self.latent_spc, n_features)
-        self.elu = nn.ELU()
+        self.lstm = nn.LSTM(input_size=self.n_features,
+                             hidden_size=self.n_features,
+                             batch_first=True)
 
-        self.lstm = nn.LSTMCell(input_size=self.n_features,
-                             hidden_size=self.n_features)
+    def forward(self, inp, hidden):
 
-    def forward(self, x, y_decod, eps, is_train):
+        out, hidden = self.lstm(inp, hidden)
 
-        out = self.elu(self.initial_layer(x))
-        hidden = out.squeeze(0)
-        cell = out.squeeze(0)
-        outputs = []
-        out = y_decod[:,0,:]
-        for i in range(self.seq_len):
-
-            if is_train and  np.random.random() > eps:
-                inp = y_decod[:,i,:]
-            else:
-                inp =  out
-
-            hidden, cell = self.lstm(inp, (hidden, cell))
-            out = hidden
-            outputs.append(out)
-
-        out = torch.stack(outputs, dim=0)
-        out = torch.reshape(out, (self.batch_size, self.seq_len, self.n_features))
-
-        return out
+        return out, hidden
 
 class LSTMPredictor(pl.LightningModule):
-    def __init__(self, n_features, fc_dim, seq_len, batch_size, latent_spc, learning_rate, is_train):
+    def __init__(self, n_features, fc_dim, seq_len, batch_size, latent_spc, learning_rate):
         super(LSTMPredictor,self).__init__()
         self.n_features = n_features
         self.fc_dim = fc_dim
@@ -159,26 +138,34 @@ class LSTMPredictor(pl.LightningModule):
         self.learning_rate = learning_rate
         self.latent_spc = latent_spc
         self.count = 0
-        self.is_train = is_train
 
         self.encoder = Encoder(n_features, latent_spc, fc_dim)
-        self.decoder = Decoder(seq_len, latent_spc, n_features, fc_dim, batch_size)
-        self.eps = 0
+        self.decoder = Decoder(n_features)
 
         self.save_hyperparameters()
 
-    def forward(self, x, y_decod, eps, is_train):
+    def forward(self, x, y_decod, is_train):
         x, mu, logvar = self.encoder(x)
-        x = self.decoder(x, y_decod, eps, is_train)
-        return x, mu, logvar
+        hidden = (x, x)
+        output = []
+        if is_train:
+            out, _ = self.decoder(y_decod[:,i,:].unsqueeze(1), hidden)
+            output = out
+        else:
+            for i in range(self.seq_len):
+                out, hidden = self.decoder(y_decod[:,i,:].unsqueeze(1), hidden)
+                output.append(out)
+            output = torch.stack(output, dim=0)
+            output = torch.reshape(output, (self.batch_size, self.seq_len, self.n_features))
+
+        return output, mu, logvar
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.learning_rate)
 
     def training_step(self, batch, batch_idx):
         x, y_decod = batch
-        self.eps = (self.current_epoch / args.max_epochs)
-        y_hat, mu, logvar= self(x, y_decod, self.eps, is_train=args.is_train)
+        y_hat, mu, logvar= self(x, y_decod)
         rloss = F.mse_loss(y_hat, y_decod)
         kld = -0.5 * torch.sum(1 + logvar -mu.pow(2) - logvar.exp())
         loss = rloss + kld * (self.current_epoch / args.max_epochs) * args.beta
@@ -189,7 +176,7 @@ class LSTMPredictor(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         x, y_decod = batch
-        y_hat, mu, logvar = self(x,y_decod, self.eps, is_train=False)
+        y_hat, mu, logvar = self(x, y_decod)
         rloss = F.mse_loss(y_hat, y_decod)
         kld = -0.5 * torch.sum(1 + logvar -mu.pow(2) - logvar.exp())
         loss = rloss + kld * (self.current_epoch / args.max_epochs) * args.beta
@@ -200,7 +187,7 @@ class LSTMPredictor(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         x, y_decod = batch
-        y_hat, mu, logvar = self(x, y_decod, self.eps, is_train=False)
+        y_hat, mu, logvar = self(x, y_decod)
         rloss = F.mse_loss(y_hat, y_decod)
         kld = -0.5 * torch.sum(1 + logvar -mu.pow(2) - logvar.exp())
         loss = rloss + kld * (self.current_epoch / args.max_epochs) * args.beta
@@ -236,8 +223,7 @@ if __name__ == "__main__":
         seq_len = args.seq_len,
         batch_size = args.batch_size,
         latent_spc = args.latent_spc,
-        learning_rate = args.learning_rate,
-        is_train = args.is_train
+        learning_rate = args.learning_rate
     )
 
     trainer.fit(model, train_loader, test_loader)
