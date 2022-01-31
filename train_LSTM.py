@@ -149,14 +149,14 @@ class LSTMPredictor(pl.LightningModule):
         hidden = (x, x)
         output = []
         if is_train:
-            out, _ = self.decoder(y_decod[:,i,:].unsqueeze(1), hidden)
+            out, _ = self.decoder(y_decod, hidden)
             output = out
         else:
             for i in range(self.seq_len):
                 out, hidden = self.decoder(y_decod[:,i,:].unsqueeze(1), hidden)
                 output.append(out)
             output = torch.stack(output, dim=0)
-            output = torch.reshape(output, (self.batch_size, self.seq_len, self.n_features))
+            output = torch.reshape(output, (self.seq_len, self.n_features))
 
         return output, mu, logvar
 
@@ -165,7 +165,7 @@ class LSTMPredictor(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         x, y_decod = batch
-        y_hat, mu, logvar= self(x, y_decod)
+        y_hat, mu, logvar= self(x, y_decod, is_train=True)
         rloss = F.mse_loss(y_hat, y_decod)
         kld = -0.5 * torch.sum(1 + logvar -mu.pow(2) - logvar.exp())
         loss = rloss + kld * (self.current_epoch / args.max_epochs) * args.beta
@@ -176,7 +176,7 @@ class LSTMPredictor(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         x, y_decod = batch
-        y_hat, mu, logvar = self(x, y_decod)
+        y_hat, mu, logvar = self(x, y_decod, is_train=False)
         rloss = F.mse_loss(y_hat, y_decod)
         kld = -0.5 * torch.sum(1 + logvar -mu.pow(2) - logvar.exp())
         loss = rloss + kld * (self.current_epoch / args.max_epochs) * args.beta
@@ -187,7 +187,7 @@ class LSTMPredictor(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         x, y_decod = batch
-        y_hat, mu, logvar = self(x, y_decod)
+        y_hat, mu, logvar = self(x, y_decod, is_train=False)
         rloss = F.mse_loss(y_hat, y_decod)
         kld = -0.5 * torch.sum(1 + logvar -mu.pow(2) - logvar.exp())
         loss = rloss + kld * (self.current_epoch / args.max_epochs) * args.beta

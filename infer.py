@@ -40,7 +40,7 @@ def get_numpy(x):
 def get_embeddings(input, label):
     input = input.unsqueeze(0).to(model.device)
     label = label.unsqueeze(0).to(model.device)
-    recon, mu, _ = model(input, label)
+    recon, mu, _ = model(input, label, is_train=False)
     recon = get_numpy(recon)
     return recon
 
@@ -54,7 +54,7 @@ for sess in df["Session id"].unique()[36:38]:
         label = list(sess_feat.iloc[j+args.seq_len-1:j+terminate-1,:][train_feats].values)
         recon = get_embeddings(torch.tensor(train).float(), torch.tensor(label).float())
         true.append(train[0][8])
-        pred.append(recon[1][8])
+        pred.append(recon[0][8])
 
 fig, ax = plt.subplots()
 ax.plot(true, color='r', label="true")
