@@ -45,30 +45,31 @@ class CraneDatasetModule():
         self.batch_size = batch_size
         self.num_workers = num_workers
 
+        self.X_train, self.Y_train_recon = self.get_data('train_df.csv')
+        self.X_val, self.Y_val_recon = self.get_data('val_df.csv')
+        self.X_test, self.Y_test_recon = self.get_data('test_df.csv')
+
+    def get_data(self, file_type):
+
         train_feats = ['Bucket Angle','Bucket Height','Engine Average Power','Current Engine Power','Engine Torque', 'Engine Torque Average',
                 'Engine RPM (%)', 'Tracks Ground Pressure Front Left', 'Tracks Ground Pressure Front Right']
 
-        def get_data(file_type):
-            data_path = os.path.join("datasets",file_type)
+        data_path = os.path.join("datasets",file_type)
 
-            df = pd.read_csv(data_path)
+        df = pd.read_csv(data_path)
 
-            df.loc[:,train_feats] = (df.loc[:,train_feats] - df.loc[:,train_feats].min())/(df.loc[:,train_feats].max() - df.loc[:,train_feats].min())
+        df.loc[:,train_feats] = (df.loc[:,train_feats] - df.loc[:,train_feats].min())/(df.loc[:,train_feats].max() - df.loc[:,train_feats].min())
 
-            input = []
-            pred = []
-            for sess in df['Session id'].unique():
-                sess_feat = df.loc[df["Session id"]==sess,:]
-                terminate = 2*self.seq_len
-                for i in range(0,len(sess_feat)-terminate):
-                    input.append(list(sess_feat.iloc[i:i+self.seq_len,:][train_feats].values))
-                    pred.append(list(sess_feat.iloc[i+self.seq_len-1:i+terminate-1,:][train_feats].values))
+        input = []
+        pred = []
+        for sess in df['Session id'].unique():
+            sess_feat = df.loc[df["Session id"]==sess,:]
+            terminate = 2*self.seq_len
+            for i in range(0,len(sess_feat)-terminate):
+                input.append(list(sess_feat.iloc[i:i+self.seq_len,:][train_feats].values))
+                pred.append(list(sess_feat.iloc[i+self.seq_len-1:i+terminate-1,:][train_feats].values))
 
-            return torch.tensor(input).float(), torch.tensor(pred).float()
-
-        self.X_train, self.Y_train_recon = get_data('train_df.csv')
-        self.X_val, self.Y_val_recon = get_data('val_df.csv')
-        self.X_test, self.Y_test_recon = get_data('test_df.csv')
+        return torch.tensor(input).float(), torch.tensor(pred).float()
 
     def train_dataloader(self):
         train_dataset = CraneDataset(self.X_train, self.Y_train_recon)
@@ -144,7 +145,6 @@ class LSTMPredictor(pl.LightningModule):
         self.batch_size = batch_size
         self.learning_rate = learning_rate
         self.latent_spc = latent_spc
-        self.count = 0
 
         self.encoder = Encoder(n_features, latent_spc, fc_dim)
         self.decoder = Decoder(n_features)
@@ -159,12 +159,13 @@ class LSTMPredictor(pl.LightningModule):
             out, _ = self.decoder(y_decod, hidden)
             output = out
         else:
-            out = y_decod.unsqueeze(0)
+            batch_size = y_decod.size()[0]
+            out = y_decod[:,0,:].unsqueeze(1)
             for i in range(args.seq_len):
                 out, hidden = self.decoder(out, hidden)
                 output.append(out)
             output = torch.stack(output, dim=0)
-            output = torch.reshape(output, (args.seq_len, self.n_features))
+            output = torch.reshape(output, (batch_size, args.seq_len, self.n_features))
 
         return output, mu, logvar
 
@@ -184,7 +185,7 @@ class LSTMPredictor(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         x, y_decod = batch
-        y_hat, mu, logvar = self(x, y_decod, is_train=True)
+        y_hat, mu, logvar = self(x, y_decod, is_train=False)
         rloss = F.mse_loss(y_hat, y_decod)
         kld = -0.5 * torch.sum(1 + logvar -mu.pow(2) - logvar.exp())
         loss = rloss + kld * (self.current_epoch / args.max_epochs) * args.beta
@@ -195,7 +196,7 @@ class LSTMPredictor(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         x, y_decod = batch
-        y_hat, mu, logvar = self(x, y_decod, is_train=True)
+        y_hat, mu, logvar = self(x, y_decod, is_train=False)
         rloss = F.mse_loss(y_hat, y_decod)
         kld = -0.5 * torch.sum(1 + logvar -mu.pow(2) - logvar.exp())
         loss = rloss + kld * (self.current_epoch / args.max_epochs) * args.beta
@@ -211,8 +212,8 @@ if __name__ == "__main__":
         batch_size = args.batch_size
     )
 
-    model_path = os.path.join('save_model',f"{args.seq_len}seq_lstm_vae_new__.pth")
-    wandb.init(name = f"{args.seq_len}seq_lstm_vae_Recon_New_seq_new__")
+    model_path = os.path.join('save_model',f"{args.seq_len}seq_lstm_vae.pth")
+    wandb.init(name = f"{args.seq_len}seq_lstm_vae_Recon")
 
     train_loader = dm.train_dataloader()
     val_loader = dm.val_dataloader()
