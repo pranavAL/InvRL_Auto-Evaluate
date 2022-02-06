@@ -45,35 +45,42 @@ class CraneDatasetModule():
         self.batch_size = batch_size
         self.num_workers = num_workers
 
-        data_path = os.path.join("datasets","features_to_train.csv")
-
-        df = pd.read_csv(data_path)
-
         train_feats = ['Bucket Angle','Bucket Height','Engine Average Power','Current Engine Power','Engine Torque', 'Engine Torque Average',
                 'Engine RPM (%)', 'Tracks Ground Pressure Front Left', 'Tracks Ground Pressure Front Right']
 
-        df.loc[:,train_feats] = (df.loc[:,train_feats] - df.loc[:,train_feats].min())/(df.loc[:,train_feats].max() - df.loc[:,train_feats].min())
+        def get_data(file_type):
+            data_path = os.path.join("datasets",file_type)
 
-        def get_data():
-            train = []
+            df = pd.read_csv(data_path)
+
+            df.loc[:,train_feats] = (df.loc[:,train_feats] - df.loc[:,train_feats].min())/(df.loc[:,train_feats].max() - df.loc[:,train_feats].min())
+
+            input = []
             pred = []
-            for sess in df['Session id'].unique()[:35]:
+            for sess in df['Session id'].unique():
                 sess_feat = df.loc[df["Session id"]==sess,:]
                 terminate = 2*self.seq_len
                 for i in range(0,len(sess_feat)-terminate):
-                    train.append(list(sess_feat.iloc[i:i+self.seq_len,:][train_feats].values))
+                    input.append(list(sess_feat.iloc[i:i+self.seq_len,:][train_feats].values))
                     pred.append(list(sess_feat.iloc[i+self.seq_len-1:i+terminate-1,:][train_feats].values))
 
-            return torch.tensor(train).float(), torch.tensor(pred).float()
+            return torch.tensor(input).float(), torch.tensor(pred).float()
 
-        self.X_train, self.Y_train_recon = get_data()
-        self.X_test, self.Y_test_recon = get_data()
+        self.X_train, self.Y_train_recon = get_data('train_df.csv')
+        self.X_val, self.Y_val_recon = get_data('val_df.csv')
+        self.X_test, self.Y_test_recon = get_data('test_df.csv')
 
     def train_dataloader(self):
         train_dataset = CraneDataset(self.X_train, self.Y_train_recon)
         train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers)
 
         return train_loader
+
+    def val_dataloader(self):
+        val_dataset = CraneDataset(self.X_val, self.Y_val_recon)
+        val_loader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers)
+
+        return val_loader
 
     def test_dataloader(self):
         test_dataset = CraneDataset(self.X_test, self.Y_test_recon)
