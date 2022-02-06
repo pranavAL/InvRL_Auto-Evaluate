@@ -215,6 +215,7 @@ if __name__ == "__main__":
     wandb.init(name = f"{args.seq_len}seq_lstm_vae_Recon_New_seq_new__")
 
     train_loader = dm.train_dataloader()
+    val_loader = dm.val_dataloader()
     test_loader = dm.test_dataloader()
 
     seed_everything(1)
