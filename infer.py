@@ -40,7 +40,7 @@ def get_numpy(x):
 def get_embeddings(input, label):
     input = input.unsqueeze(0).to(model.device)
     label = label.view(1,1,-1).to(model.device)
-    recon, mu, _ = model(input, label, is_train=False)
+    recon, mu, _, _ = model(input, label, is_train=False)
     recon = get_numpy(recon)
     return recon
 

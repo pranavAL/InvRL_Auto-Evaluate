@@ -10,19 +10,28 @@ import pandas as pd
 from random import uniform as u
 import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
+from collections import OrderedDict
 import matplotlib.patches as mpatches
-from train_LSTM import LSTMPredictor, args, train_sess, test_sess
+from train_LSTM import LSTMPredictor, args
 
 model_name = f"{args.model_path.split('.')[0]}"
 cmd = f'ffmpeg -framerate 10 -y -i temp/%d.png -c:v libx264 -pix_fmt yuv420p outputs/{model_name}.mp4'
 model_path = os.path.join('save_model', args.model_path)
 os.makedirs(f"temp", exist_ok = True)
 df = pd.read_csv(os.path.join("datasets","features_to_train.csv"))
+df_train = pd.read_csv(os.path.join("datasets","train_df.csv"))
 
-train_feats = ['Bucket Angle','Bucket Height','Engine Average Power','Current Engine Power','Engine Torque', 'Engine Torque Average',
-                'Engine RPM (%)', 'Tracks Ground Pressure Front Left', 'Tracks Ground Pressure Front Right']
+train_feats = ['Bucket Angle','Bucket Height','Engine Average Power','Current Engine Power',
+                'Engine Torque', 'Engine Torque Average',
+                'Engine RPM (%)', 'Tracks Ground Pressure Front Left',
+                'Tracks Ground Pressure Front Right']
 
-df.loc[:,train_feats] = (df.loc[:,train_feats] - df.loc[:,train_feats].min())/(df.loc[:,train_feats].max() - df.loc[:,train_feats].min())
+def normalize(df):
+    df.loc[:,train_feats] = ((df.loc[:,train_feats] - df.loc[:,train_feats].min())
+                            /(df.loc[:,train_feats].max() - df.loc[:,train_feats].min()))
+    return df
+
+df = normalize(df)
 
 model = LSTMPredictor(
     n_features = args.n_features,
@@ -30,28 +39,20 @@ model = LSTMPredictor(
     seq_len = args.seq_len,
     batch_size = args.batch_size,
     latent_spc = args.latent_spc,
-    learning_rate = args.learning_rate,
-    n_class = args.num_classes
+    learning_rate = args.learning_rate
 )
 
 model.load_state_dict(torch.load(model_path))
 model.cuda()
 model.eval()
 
-def sort_sessions(data):
-    sorted_sess = {}
-
-    for sess in data['Session id'].unique():
-        sorted_sess[sess] = data.loc[data['Session id']==sess,"Current trainee score at that time"].sum()
-    sorted_sess = dict(sorted(sorted_sess.items(), key = lambda x:x[1], reverse=True))
-
-    return sorted_sess
-
 def get_numpy(x):
     return x.squeeze().to('cpu').detach().numpy()
 
-def get_embeddings(data):
-    recon, mu, _ = model(data.unsqueeze(0).to(model.device))
+def get_embeddings(data, label):
+    data = data.unsqueeze(0).to(model.device)
+    label = label.view(1,1,-1).to(model.device)
+    recon, mu, _, _ = model(data, label, is_train=False)
     mu = get_numpy(mu)
     return mu
 
@@ -59,34 +60,35 @@ def plot_sample(data, ax, color):
     ax.scatter(*data, color=color)
     return ax
 
-def plot_by_session(ax, patches, sess, meta_data):
+def plot_by_session(ax, sess, meta_data):
     sess_feat = meta_data.loc[meta_data['sess']==sess,:]
     final_score = sess_feat.iloc[0,:]['FinalScore']
-    bucket = sess_feat.iloc[0,:]['bucket']
-    color = (1-(bucket/5),0,bucket/5)
+    bucket = abs(final_score) // 25
+    color = (1-(bucket/4),0,bucket/4)
     X = sess_feat.iloc[:,:]['X']
     Y = sess_feat.iloc[:,:]['Y']
-    ax.scatter(X, Y, color=color)
-    patches.append(mpatches.Patch(color=color, label=f"Rank {bucket}"))
-    return ax, patches
+    ax.scatter(X, Y, color=color, label=f"Rank {bucket+1}")
+    return ax
 
-def save_meta_data(df, sorted_sess):
-    meta_data = pd.DataFrame(columns=['sess','rank', 'embeddings', 'penalty', 'FinalScore', 'bucket'])
-    for i, sess in enumerate(list(sorted_sess.keys())):
+def save_meta_data(df):
+    meta_data = pd.DataFrame(columns=['sess', 'embeddings', 'penalty', 'FinalScore'])
+    for sess in df["Session id"].unique():
         sess_feat = df.loc[df["Session id"]==sess,:]
         final_score = sum(sess_feat["Current trainee score at that time"].values)
-        bucket = get_bucket(final_score)
-        for j in range(0,len(sess_feat) - args.seq_len):
-            score = sum(sess_feat.iloc[j:j+args.seq_len,:]["Current trainee score at that time"].values)
-            mu = get_embeddings(torch.tensor(sess_feat.iloc[j:j+args.seq_len,:][train_feats].values).float())
-            meta_data.loc[len(meta_data)] = [sess, i, list(mu.astype(float)), score, final_score, bucket]
+        terminate = args.seq_len
+        for i in range(0,len(sess_feat)-terminate):
+            score = sum(sess_feat.iloc[i:i+args.seq_len,:]["Current trainee score at that time"].values)
+            train = list(sess_feat.iloc[i:i+args.seq_len,:][train_feats].values)
+            init_label = list(sess_feat.iloc[i+args.seq_len-1,:][train_feats].values)
+            mu = get_embeddings(torch.tensor(train).float(), torch.tensor(init_label).float())
+            meta_data.loc[len(meta_data)] = [sess, list(mu.astype(float)), score, final_score]
     meta_data = get_tsne(meta_data)
     meta_data.to_csv(f"outputs/{model_name}")
     return meta_data
 
 def get_tsne(meta_data):
     embeddings = list(meta_data['embeddings'].values)
-    tsne = TSNE(n_components=2, verbose=1, perplexity=40, n_iter=6000, n_jobs=-1)
+    tsne = TSNE(n_components=2, verbose=1, perplexity=40, n_iter=20000, n_jobs=-1)
     Z_tsne = tsne.fit_transform(embeddings)
     meta_data['X'] = Z_tsne[:,0]
     meta_data['Y'] = Z_tsne[:,1]
@@ -94,45 +96,38 @@ def get_tsne(meta_data):
 
 def plot_datas(meta_data, ax):
 
-    patches = []
+    for sess in df_train["Session id"].unique():
+        ax = plot_by_session(ax, sess, meta_data)
 
-    for i, sess in enumerate(train_sess):
-        ax, patches = plot_by_session(ax, patches, sess, meta_data)
-
-    return ax, patches
+    return ax
 
 def animate(meta_data):
-
     count = 0
-
     for index, row in meta_data.iterrows():
-        if row['sess'] in train_sess:
+        if row['sess'] in df_train["Session id"].unique():
             continue
-        print(count)
         fig, ax = plt.subplots()
-        rank = row['rank']
         penalty = row['penalty']
         final_score = row['FinalScore']
+        rank = (abs(final_score) // 25) + 1
         x = row['X']
         y = row['Y']
-        ax, patches = plot_datas(meta_data, ax)
+        ax = plot_datas(meta_data, ax)
         ax = plot_sample([x,y], ax, (0,0,0))
-        ax.legend(handles=patches, loc='best', ncol=3, fancybox=True, shadow=True)
+
+        lines, labels = fig.axes[-1].get_legend_handles_labels()
+        by_label = OrderedDict(zip(labels, lines))
+        plt.legend(by_label.values(), by_label.keys(), loc = 'best')
         plt.title(f"Rank: {rank}, Penalty: {penalty}, Final Score: {final_score}")
         fig.savefig(f"temp/{count}.png")
         plt.close()
         count+=1
-        if count > 5000:
-            break
 
     os.system(cmd)
     shutil.rmtree(f"temp")
 
-sorted_sess = sort_sessions(df)
-
 with torch.no_grad():
 
-    #meta_data = save_meta_data(df, sorted_sess)
-    meta_data = pd.read_csv(f"outputs/{model_name}")
-    print(meta_data['bucket'].unique())
-    #animate(meta_data)
+    meta_data = save_meta_data(df)
+    #meta_data = pd.read_csv(f"outputs/{model_name}")
+    animate(meta_data)
