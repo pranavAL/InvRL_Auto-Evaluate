@@ -17,12 +17,13 @@ warnings.filterwarnings("ignore")
 parser = argparse.ArgumentParser(description="Hyperparameter Values")
 parser.add_argument('-sq','--seq_len', type=int, help="Sequence Length for input to LSTM")
 parser.add_argument('-bs','--batch_size', type=int, default=8, help="Batch Size")
-parser.add_argument('-me','--max_epochs', type=int, default=100, help="Number of epchs to train")
+parser.add_argument('-me','--max_epochs', type=int, default=300, help="Number of epchs to train")
 parser.add_argument('-nf','--n_features', type=int, default=9, help="Length of feature for each sample")
 parser.add_argument('-ls','--latent_spc', type=int,default=8, help='Size of Latent Space')
-parser.add_argument('-kldc','--beta', type=float, default=0.01, help='weighting factor of KLD')
+parser.add_argument('-kldc','--beta', type=float, default=0.001, help='weighting factor of KLD')
+parser.add_argument('-gam','--gamma', type=float, default=0.1, help='weighting factor of MSE')
 parser.add_argument('-fcd','--fc_dim', type=int, default=64, help="Number of FC Nodes")
-parser.add_argument('-lr','--learning_rate', type=float, default=0.001, help="Neural Network Learning Rate")
+parser.add_argument('-lr','--learning_rate', type=float, default=0.0001, help="Neural Network Learning Rate")
 parser.add_argument('-nc','--num_classes', type=int, default=5, help="Number of users")
 parser.add_argument('-mp', '--model_path', type=str, help="Saved model path")
 parser.add_argument('-istr','--is_train', type=bool, help="Train or Testing")
@@ -73,10 +74,9 @@ class CraneDatasetModule():
             for i in range(0,len(sess_feat)-terminate):
                 input.append(list(sess_feat.iloc[i:i+self.seq_len,:][train_feats].values))
                 pred.append(list(sess_feat.iloc[i+self.seq_len-1:i+terminate-1,:][train_feats].values))
-                label.append([bucket]*self.seq_len)
-                time.append(range(0,self.seq_len))
-
-        return torch.tensor(input).float(), torch.tensor(pred).float(), torch.tensor(label).to(torch.int64), torch.tensor(time).to(torch.int64)
+                label.append([bucket/5]*self.seq_len)
+                time.append([i/self.seq_len for i in range(0,self.seq_len)])
+        return torch.tensor(input).float(), torch.tensor(pred).float(), torch.tensor(label).float(), torch.tensor(time).float()
 
     def train_dataloader(self):
         train_dataset = CraneDataset(self.X_train, self.Y_train_recon, self.Y_train_label, self.Y_train_time)
@@ -142,7 +142,8 @@ class Classifier(nn.Module):
                                 nn.ELU(),
                                 nn.Linear(self.fc_dim[1], self.fc_dim[0]),
                                 nn.ELU(),
-                                nn.Linear(self.fc_dim[0], self.n_class))
+                                nn.Linear(self.fc_dim[0], self.n_class),
+                                nn.Sigmoid())
 
     def forward(self, x):
         out = self.fc(x)
@@ -178,12 +179,13 @@ class LSTMPredictor(pl.LightningModule):
 
         self.encoder = Encoder(n_features, latent_spc, fc_dim)
         self.decoder = Decoder(n_features)
-        self.classifier1 = Classifier(n_features, h_space, n_class=5)
-        self.classifier2 = Classifier(n_features, h_space, n_class=32)
+        self.classifier1 = Classifier(n_features, h_space, n_class=1)
+        self.classifier2 = Classifier(n_features, h_space, n_class=1)
 
         self.save_hyperparameters()
 
     def forward(self, x, y_decod, is_train):
+        inp_batch_size = x.size(0)
         x, mu, logvar = self.encoder(x)
         hidden = (x, x)
         output = []
@@ -200,7 +202,7 @@ class LSTMPredictor(pl.LightningModule):
             output = torch.stack(output, dim=0)
             output = torch.reshape(output, (batch_size, args.seq_len, self.n_features))
 
-        x = torch.reshape(x, (args.batch_size, -1, self.n_features))
+        x = torch.reshape(x, (inp_batch_size, -1, self.n_features))
         x = x.repeat(1, args.seq_len, 1)
         rank_pred = self.classifier1(torch.cat((x,output), dim=-1))
         time_pred = self.classifier2(torch.cat((x,output), dim=-1))
@@ -208,29 +210,30 @@ class LSTMPredictor(pl.LightningModule):
         return output, mu, logvar, rank_pred, time_pred
 
     def configure_optimizers(self):
-        return torch.optim.AdamW(self.parameters(), lr=self.learning_rate)
+        return torch.optim.Adam(self.parameters(), lr=self.learning_rate)
 
     def get_accuracy(self, pred, label):
-        prob = torch.softmax(pred, dim=2)
-        out = prob.argmax(dim=2).squeeze(0)
-        accuracy = torch.sum(out==label).item() / (len(label) * 1.0)
+        accuracy = torch.sum(pred==label).item() / (len(label) * 1.0)
         return accuracy
 
     def final_process(self, batch, p_type, is_train):
         x, y_decod, y_rank, y_time = batch
         y_hat, mu, logvar, rank_pred, time_pred = self(x, y_decod, is_train)
         rloss = F.mse_loss(y_hat, y_decod)
-        bce_rank = nn.CrossEntropyLoss()(rank_pred.reshape(-1,self.buckets), y_rank.reshape(-1))
-        bce_time = nn.CrossEntropyLoss()(time_pred.reshape(-1,args.seq_len), y_time.reshape(-1))
+        mse_rank = F.mse_loss(rank_pred.reshape(-1), y_rank.reshape(-1))
+        mse_time = F.mse_loss(time_pred.reshape(-1), y_time.reshape(-1))
         kld = -0.5 * torch.sum(1 + logvar -mu.pow(2) - logvar.exp())
-        loss = rloss + kld + bce_rank + bce_time
-        rank_accuracy = self.get_accuracy(rank_pred, y_rank)
-        time_accuracy = self.get_accuracy(time_pred, y_time)
+        beta = ((self.current_epoch//50)/args.max_epochs) * args.beta
+        gamma1 = ((self.current_epoch//100)/100) * args.gamma
+        gamma2 = ((self.current_epoch//200)/100) * args.gamma
+        loss = rloss + kld * beta + mse_rank * gamma1 + mse_time * gamma2
+        rank_accuracy = self.get_accuracy(rank_pred.reshape(-1), y_rank.reshape(-1))
+        time_accuracy = self.get_accuracy(time_pred.reshape(-1), y_time.reshape(-1))
         self.log(f'{p_type}/recon_loss', rloss, on_epoch=True)
         self.log(f'{p_type}/kld', kld, on_epoch=True)
         self.log(f'{p_type}/total_loss', loss, on_epoch=True)
-        self.log(f'{p_type}/Rank_classification_loss', bce_rank, on_epoch=True)
-        self.log(f'{p_type}/Time_classification_loss', bce_time, on_epoch=True)
+        self.log(f'{p_type}/Rank_classification_loss', mse_rank, on_epoch=True)
+        self.log(f'{p_type}/Time_classification_loss', mse_time, on_epoch=True)
         self.log(f'{p_type}/Rank_Accuracy', rank_accuracy, on_epoch=True)
         self.log(f'{p_type}/Time_Accuracy', time_accuracy, on_epoch=True)
 
@@ -264,12 +267,6 @@ if __name__ == "__main__":
 
     seed_everything(1)
 
-    wandb_logger = WandbLogger(project="lit-wandb")
-    trainer = Trainer(max_epochs=args.max_epochs,
-                    gpus = 1,
-                    logger=wandb_logger,
-                    log_every_n_steps=5)
-
     model = LSTMPredictor(
         n_features = args.n_features,
         fc_dim = args.fc_dim,
@@ -278,6 +275,15 @@ if __name__ == "__main__":
         latent_spc = args.latent_spc,
         learning_rate = args.learning_rate
     )
+
+    wandb_logger = WandbLogger(project="lit-wandb")
+
+    trainer = Trainer(max_epochs=args.max_epochs,
+                    gpus = 1,
+                    logger=wandb_logger,
+                    log_every_n_steps=500)
+
+    wandb_logger.watch(model, log="all")
 
     trainer.fit(model, train_loader, test_loader)
     trainer.test(model, test_dataloaders=test_loader)

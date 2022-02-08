@@ -20,6 +20,7 @@ model_path = os.path.join('save_model', args.model_path)
 os.makedirs(f"temp", exist_ok = True)
 df = pd.read_csv(os.path.join("datasets","features_to_train.csv"))
 df_train = pd.read_csv(os.path.join("datasets","train_df.csv"))
+color_cycle = {0:(0,0,1), 1:(0,1,0), 2:(1,0,0), 3:(1,0,1), 4:(1,1,0)}
 
 train_feats = ['Bucket Angle','Bucket Height','Engine Average Power','Current Engine Power',
                 'Engine Torque', 'Engine Torque Average',
@@ -52,7 +53,7 @@ def get_numpy(x):
 def get_embeddings(data, label):
     data = data.unsqueeze(0).to(model.device)
     label = label.view(1,1,-1).to(model.device)
-    recon, mu, _, _ = model(data, label, is_train=False)
+    recon, mu, _, _, _ = model(data, label, is_train=False)
     mu = get_numpy(mu)
     return mu
 
@@ -64,7 +65,7 @@ def plot_by_session(ax, sess, meta_data):
     sess_feat = meta_data.loc[meta_data['sess']==sess,:]
     final_score = sess_feat.iloc[0,:]['FinalScore']
     bucket = abs(final_score) // 25
-    color = (1-(bucket/4),0,bucket/4)
+    color = color_cycle[bucket]
     X = sess_feat.iloc[:,:]['X']
     Y = sess_feat.iloc[:,:]['Y']
     ax.scatter(X, Y, color=color, label=f"Rank {bucket+1}")
@@ -88,7 +89,7 @@ def save_meta_data(df):
 
 def get_tsne(meta_data):
     embeddings = list(meta_data['embeddings'].values)
-    tsne = TSNE(n_components=2, verbose=1, perplexity=40, n_iter=20000, n_jobs=-1)
+    tsne = TSNE(n_components=2, verbose=1, perplexity=500, n_iter=5000, n_jobs=-1)
     Z_tsne = tsne.fit_transform(embeddings)
     meta_data['X'] = Z_tsne[:,0]
     meta_data['Y'] = Z_tsne[:,1]
