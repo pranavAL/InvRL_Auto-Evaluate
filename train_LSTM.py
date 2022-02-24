@@ -24,7 +24,7 @@ parser.add_argument('-kldc','--beta', type=float, default=0.001, help='weighting
 parser.add_argument('-gam','--gamma', type=float, default=0.1, help='weighting factor of MSE')
 parser.add_argument('-fcd','--fc_dim', type=int, default=64, help="Number of FC Nodes")
 parser.add_argument('-lr','--learning_rate', type=float, default=0.0001, help="Neural Network Learning Rate")
-parser.add_argument('-mp', '--model_path', type=str, help="Saved model path")
+parser.add_argument('-mp', '--model_path', type=str, help="Saved model path", required=True)
 parser.add_argument('-istr','--is_train', type=bool, help="Train or Testing", required=True)
 args = parser.parse_args()
 
