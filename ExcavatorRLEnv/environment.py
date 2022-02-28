@@ -76,6 +76,7 @@ class env():
         self.current_step = 0
         self.reward = 0
         self.rewfeatures = []
+        self.last_step = np.zeros()
 
         # The first time we load the scene
         if self.vxscene is None:
@@ -163,17 +164,18 @@ class env():
 
         states = (states - np.mean(states)) / np.std(states)
 
-        BuckAng = self.MetricsInterface.getOutputContainer()['Bucket Angle'].value
-        BuckHeight = self.MetricsInterface.getOutputContainer()['Bucket Height'].value
-        EngAvgPow = self.MetricsInterface.getOutputContainer()['Engine Average Power'].value
-        CurrEngPow = self.MetricsInterface.getOutputContainer()['Current Engine Power'].value
-        EngTor = self.MetricsInterface.getOutputContainer()['Engine Torque'].value
-        EngTorAvg = self.MetricsInterface.getOutputContainer()['Engine Torque Average'].value
-        Engrpm = self.MetricsInterface.getOutputContainer()['Engine RPM (%)'].value
-        PressLeft = self.MetricsInterface.getOutputContainer()['Tracks Ground Pressure Front Left'].value
-        PressRight = self.MetricsInterface.getOutputContainer()['Tracks Ground Pressure Front Right'].value
+        BuckAng = self.MetricsInterface.getInputContainer()['Bucket Angle'].value
+        BuckHeight = self.MetricsInterface.getInputContainer()['Bucket Height'].value
+        EngAvgPow = self.MetricsInterface.getInputContainer()['Engine Average Power'].value
+        CurrEngPow = self.MetricsInterface.getInputContainer()['Current Engine Power'].value
+        EngTor = self.MetricsInterface.getInputContainer()['Engine Torque'].value
+        EngTorAvg = self.MetricsInterface.getInputContainer()['Engine Torque Average'].value
+        Engrpm = self.MetricsInterface.getInputContainer()['Engine RPM (%)'].value
+        PressLeft = self.MetricsInterface.getInputContainer()['Tracks Ground Pressure Front Left'].value
+        PressRight = self.MetricsInterface.getInputContainer()['Tracks Ground Pressure Front Right'].value
 
-        herustic_reward = self.get_heuristics(self.MetricsInterface)
+        herustic_reward, new_step = self.get_heuristics(self.MetricsInterface, last_step)
+        last_step = new_step
 
         RewardVal = [BuckAng, BuckHeight, EngAvgPow, CurrEngPow, EngTor, EngTorAvg,
                     Engrpm, PressLeft, PressRight]
@@ -204,33 +206,3 @@ class env():
             if len(current_displays) == 1:
                 self.application.remove(current_displays[0])
             self.application.setSyncMode(Vortex.kSyncNone)
-
-    def get_heuristics_reward(self):
-        arc_restart = self.MetricsInterface.getOutputContainer()['Number of times user had to restart an arc'].value
-        cur_score = self.MetricsInterface.getOutputContainer()['Current path score'].value
-        tot_out_path = self.MetricsInterface.getOutputContainer()['Total time out of path'].value
-        tot_pat_tim = self.MetricsInterface.getOutputContainer()['Total path time'].value
-        cur_pat_tim = self.MetricsInterface.getOutputContainer()['Current path time'].value
-        avg_tim_pat = self.MetricsInterface.getOutputContainer()['Average time per path'].value
-        avg_sco_pat = self.MetricsInterface.getOutputContainer()['Average score per path'].value
-        cur_pat_out_time = self.MetricsInterface.getOutputContainer()['Current path time out of range'].value
-        avg_pat_out_time = self.MetricsInterface.getOutputContainer()['Average time out of path range'].value
-        ball_knock = self.MetricsInterface.getOutputContainer()['Number of tennis balls knocked over by operator'].value
-        pole_touch = self.MetricsInterface.getOutputContainer()['Number of poles touched'].value
-        pole_fell = self.MetricsInterface.getOutputContainer()['Number of poles that fell over'].value
-        barr_touch = self.MetricsInterface.getOutputContainer()['Number of barrels touches'].value
-        barr_knock = self.MetricsInterface.getOutputContainer()['Number of barrels knocked over'].value
-        equip_coll = self.MetricsInterface.getOutputContainer()['Number of equipment collisions'].value
-        num_idle = self.MetricsInterface.getOutputContainer()['Number of times machine was left idling'].value
-        buck_self = self.MetricsInterface.getOutputContainer()['Bucket Self Contact'].value
-        rat_idle = self.MetricsInterface.getOutputContainer()['Ratio of time that operator runs equipment vs idle time'].value
-        coll_env = self.MetricsInterface.getOutputContainer()['Collisions with environment'].value
-        num_goal = self.MetricsInterface.getOutputContainer()['Exercise Number of goals met'].value
-        ex_time = self.MetricsInterface.getOutputContainer()['Exercise Time'].value
-        buck_truck = self.MetricsInterface.getOutputContainer()['Safety violation bucket over truck cab'].value
-        dump_truck = self.MetricsInterface.getOutputContainer()['Safety violation dump truck contact'].value
-        elec_line = self.MetricsInterface.getOutputContainer()['Safety violation electrical lines'].value
-        hum_cont = self.MetricsInterface.getOutputContainer()['Safety violation human contact'].value
-        load_hum = self.MetricsInterface.getOutputContainer()['Safety violation load over human'].value
-        park_pos = self.MetricsInterface.getOutputContainer()['Safety violation unsafe parking position'].value
-        flip_vehc = self.MetricsInterface.getOutputContainer()['Safety violation Flipped Vehicle'].value
