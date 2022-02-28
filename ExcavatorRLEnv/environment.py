@@ -9,6 +9,7 @@ import math
 import torch
 import os
 from train_LSTM import LSTMPredictor
+from heuristics import get_heuristics
 
 SUB_STEPS = 5
 MAX_STEPS = 200
@@ -86,7 +87,8 @@ class env():
             self.scene = Vortex.SceneInterface(self.vxscene)
 
             # Get the RL Interface VHL
-            self.interface = self.scene.findExtensionByName('ICD Controls - VHL')
+            self.ControlInterface = self.scene.findExtensionByName('ICD Controls - VHL')
+            self.MetricsInterface = self.scene.findExtensionByName('States and Metrics')
 
             # Switch to Simulation Mode
             vxatp3.VxATPUtils.requestApplicationModeChangeAndWait(self.application, Vortex.kModeSimulating)
@@ -110,7 +112,7 @@ class env():
             self.keyFrameList.restore(self.key_frames_array[0])
             self.application.update()
 
-        self.interface.getInputContainer()['Control | Engine Start Switch'].value = True
+        self.ControlInterface.getInputContainer()['Control | Engine Start Switch'].value = True
 
         while len(self.rewfeatures) < self.args.seq_len:
             state, reward = self._get_obs()
@@ -128,10 +130,10 @@ class env():
     def step(self, action):  # takes a numpy array as input
 
         # Apply actions
-        self.interface.getInputContainer()['Swing [3] | Control Input'].value = action[0].item()
-        self.interface.getInputContainer()['Bucket [2] | Control Input'].value = action[1].item()
-        self.interface.getInputContainer()['Stick [1] | Control Input'].value = action[2].item()
-        self.interface.getInputContainer()['Boom [0] | Control Input'].value = action[3].item()
+        self.ControlInterface.getInputContainer()['Swing [3] | Control Input'].value = action[0].item()
+        self.ControlInterface.getInputContainer()['Bucket [2] | Control Input'].value = action[1].item()
+        self.ControlInterface.getInputContainer()['Stick [1] | Control Input'].value = action[2].item()
+        self.ControlInterface.getInputContainer()['Boom [0] | Control Input'].value = action[3].item()
 
         # Step the simulation
         for i in range(SUB_STEPS):
@@ -153,23 +155,25 @@ class env():
 
     def _get_obs(self):
         penalty = 0
-        swingpos = self.interface.getOutputContainer()['State | Actuator Swing Position'].value
-        BoomLinPos = self.interface.getOutputContainer()['State | Actuator Boom Position'].value
-        BuckLinPos = self.interface.getOutputContainer()['State | Actuator Bucket Position'].value
-        StickLinPos = self.interface.getOutputContainer()['State | Actuator Arm Position'].value
+        swingpos = self.ControlInterface.getOutputContainer()['State | Actuator Swing Position'].value
+        BoomLinPos = self.ControlInterface.getOutputContainer()['State | Actuator Boom Position'].value
+        BuckLinPos = self.ControlInterface.getOutputContainer()['State | Actuator Bucket Position'].value
+        StickLinPos = self.ControlInterface.getOutputContainer()['State | Actuator Arm Position'].value
         states = np.array([swingpos, BoomLinPos, BuckLinPos, StickLinPos])
 
         states = (states - np.mean(states)) / np.std(states)
 
-        BuckAng = self.interface.getOutputContainer()['Reward | Bucket Angle'].value
-        BuckHeight = self.interface.getOutputContainer()['Reward | Bucket Height'].value
-        EngAvgPow = self.interface.getOutputContainer()['Reward | Engine Average Power'].value
-        CurrEngPow = self.interface.getOutputContainer()['Reward | Current Engine Power'].value
-        EngTor = self.interface.getOutputContainer()['Reward | Engine Torque'].value
-        EngTorAvg = self.interface.getOutputContainer()['Reward | Engine Torque Average'].value
-        Engrpm = self.interface.getOutputContainer()['Reward | Engine RPM'].value
-        PressLeft = self.interface.getOutputContainer()['Reward | Front Left Pressure'].value
-        PressRight = self.interface.getOutputContainer()['Reward | Front Right Pressure'].value
+        BuckAng = self.MetricsInterface.getOutputContainer()['Bucket Angle'].value
+        BuckHeight = self.MetricsInterface.getOutputContainer()['Bucket Height'].value
+        EngAvgPow = self.MetricsInterface.getOutputContainer()['Engine Average Power'].value
+        CurrEngPow = self.MetricsInterface.getOutputContainer()['Current Engine Power'].value
+        EngTor = self.MetricsInterface.getOutputContainer()['Engine Torque'].value
+        EngTorAvg = self.MetricsInterface.getOutputContainer()['Engine Torque Average'].value
+        Engrpm = self.MetricsInterface.getOutputContainer()['Engine RPM (%)'].value
+        PressLeft = self.MetricsInterface.getOutputContainer()['Tracks Ground Pressure Front Left'].value
+        PressRight = self.MetricsInterface.getOutputContainer()['Tracks Ground Pressure Front Right'].value
+
+        herustic_reward = self.get_heuristics(self.MetricsInterface)
 
         RewardVal = [BuckAng, BuckHeight, EngAvgPow, CurrEngPow, EngTor, EngTorAvg,
                     Engrpm, PressLeft, PressRight]
@@ -200,3 +204,33 @@ class env():
             if len(current_displays) == 1:
                 self.application.remove(current_displays[0])
             self.application.setSyncMode(Vortex.kSyncNone)
+
+    def get_heuristics_reward(self):
+        arc_restart = self.MetricsInterface.getOutputContainer()['Number of times user had to restart an arc'].value
+        cur_score = self.MetricsInterface.getOutputContainer()['Current path score'].value
+        tot_out_path = self.MetricsInterface.getOutputContainer()['Total time out of path'].value
+        tot_pat_tim = self.MetricsInterface.getOutputContainer()['Total path time'].value
+        cur_pat_tim = self.MetricsInterface.getOutputContainer()['Current path time'].value
+        avg_tim_pat = self.MetricsInterface.getOutputContainer()['Average time per path'].value
+        avg_sco_pat = self.MetricsInterface.getOutputContainer()['Average score per path'].value
+        cur_pat_out_time = self.MetricsInterface.getOutputContainer()['Current path time out of range'].value
+        avg_pat_out_time = self.MetricsInterface.getOutputContainer()['Average time out of path range'].value
+        ball_knock = self.MetricsInterface.getOutputContainer()['Number of tennis balls knocked over by operator'].value
+        pole_touch = self.MetricsInterface.getOutputContainer()['Number of poles touched'].value
+        pole_fell = self.MetricsInterface.getOutputContainer()['Number of poles that fell over'].value
+        barr_touch = self.MetricsInterface.getOutputContainer()['Number of barrels touches'].value
+        barr_knock = self.MetricsInterface.getOutputContainer()['Number of barrels knocked over'].value
+        equip_coll = self.MetricsInterface.getOutputContainer()['Number of equipment collisions'].value
+        num_idle = self.MetricsInterface.getOutputContainer()['Number of times machine was left idling'].value
+        buck_self = self.MetricsInterface.getOutputContainer()['Bucket Self Contact'].value
+        rat_idle = self.MetricsInterface.getOutputContainer()['Ratio of time that operator runs equipment vs idle time'].value
+        coll_env = self.MetricsInterface.getOutputContainer()['Collisions with environment'].value
+        num_goal = self.MetricsInterface.getOutputContainer()['Exercise Number of goals met'].value
+        ex_time = self.MetricsInterface.getOutputContainer()['Exercise Time'].value
+        buck_truck = self.MetricsInterface.getOutputContainer()['Safety violation bucket over truck cab'].value
+        dump_truck = self.MetricsInterface.getOutputContainer()['Safety violation dump truck contact'].value
+        elec_line = self.MetricsInterface.getOutputContainer()['Safety violation electrical lines'].value
+        hum_cont = self.MetricsInterface.getOutputContainer()['Safety violation human contact'].value
+        load_hum = self.MetricsInterface.getOutputContainer()['Safety violation load over human'].value
+        park_pos = self.MetricsInterface.getOutputContainer()['Safety violation unsafe parking position'].value
+        flip_vehc = self.MetricsInterface.getOutputContainer()['Safety violation Flipped Vehicle'].value
