@@ -58,5 +58,17 @@ if __name__ == "__main__":
             agent.memory.saveBuffer()
 
             wandb.log({"Average Total Reward":np.mean(mean_score)})
+            wandb.log({'Exercise Number of goals met':env.num_goal})
+            wandb.log({'Collisions with environment':env.coll_env})
+            wandb.log({'Number of times machine was left idling':env.num_idle})
+            wandb.log({'Number of times user had to restart an arc':env.arc_restart})
+            wandb.log({'Number of tennis balls knocked over by operator':env.ball_knock})
+            wandb.log({'Number of poles touched':env.pole_touch})
+            wandb.log({'Number of poles that fell over':env.pole_fell})
+            wandb.log({'Number of barrels touches':env.barr_touch})
+            wandb.log({'Number of barrels knocked over':env.barr_knock})
+            wandb.log({'Number of equipment collisions':env.equip_coll})
+            wandb.log({'Exercise Number of goals met':env.num_goal})
+            wandb.log({'Exercise Time':env.ex_time})
             i_ep += 1
     del env
