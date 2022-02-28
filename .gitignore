@@ -13,3 +13,4 @@ __pycache__
 MongoDB-Share
 outputs
 .log
+ExcavatorRLEnv/*.log

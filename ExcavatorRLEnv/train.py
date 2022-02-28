@@ -29,7 +29,6 @@ if __name__ == "__main__":
 
     agent = Agent(args)
 
-
     agent.lets_init_weights()
 
     i_ep = 0
@@ -40,17 +39,15 @@ if __name__ == "__main__":
         if 'saved_buffer.pkl' not in os.listdir():
             print(f"Collecting Episode: {i_ep}")
             mean_score = []
-            mean_sand = []
             agent = Agent(args)
             time.sleep(5)
             agent.load_weights()
-            state = env.reset()
+            state, _ = env.reset()
 
             for t in range(int(args.steps_per_episode)):
                 action = agent.act(state, is_training)
                 state_, reward, done, _ = env.step(list(action))
                 mean_score.append(reward)
-                mean_sand.append(reward)
 
                 agent.save_eps(state, reward, action, done, state_)
                 state = state_
@@ -60,7 +57,6 @@ if __name__ == "__main__":
 
             agent.memory.saveBuffer()
 
-            # wandb.log({"Average Total Reward":np.mean(mean_score)})
-            # wandb.log({"Average Sand":np.mean(mean_sand)})
+            wandb.log({"Average Total Reward":np.mean(mean_score)})
             i_ep += 1
     del env

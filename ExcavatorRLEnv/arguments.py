@@ -25,7 +25,7 @@ def get_args():
     parser.add_argument('--is_training', default=1, type=int, help='1 for training and 0 for testing')
     parser.add_argument('--steps_per_episode', default=300, type=int, help='Steps per Episode')
 
-    parser.add_argument('-sq','--seq_len', type=int, help="Sequence Length for input to LSTM")
+    parser.add_argument('-sq','--seq_len', type=int, default=32, help="Sequence Length for input to LSTM")
     parser.add_argument('-bs','--batch_size', type=int, default=8, help="Batch Size")
     parser.add_argument('-lr','--learning_rate', type=float, default=0.0001, help="Neural Network Learning Rate")
     parser.add_argument('-mp', '--model_path', type=str, help="Saved model path", required=True)

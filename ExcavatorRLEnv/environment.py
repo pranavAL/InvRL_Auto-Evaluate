@@ -24,7 +24,7 @@ class env():
 
         # Define the setup and scene file paths
         self.setup_file = 'Setup.vxc'
-        self.content_file = r'C:\CM Labs\Vortex Construction Assets 21.1\assets\Excavator\Scenes\BasicControls\EX_Basic_Controls.vxscene'
+        self.content_file = r'C:\CM Labs\Vortex Construction Assets 21.1\assets\Excavator\Scenes\ArcSwipe\EX_Arc_Swipe.vxscene'
 
         # Create the Vortex Application
         self.application = vxatp3.VxATPConfig.createApplication(self, 'Excavator App', self.setup_file)
@@ -63,11 +63,12 @@ class env():
     def get_numpy(self, x):
         return x.squeeze().to('cpu').detach().numpy()
 
-    def get_distribution(self, data, label):
+    def get_penalty(self, data, label):
         data = data.unsqueeze(0).to(self.model.device)
         label = label.view(1,1,-1).to(self.model.device)
-        _, mu, logvar = model(data, label, is_train=False)
-        return self.get_numpy(mu), self.get_numpy(logvar)
+        _, mu, logvar = self.model(data, label, is_train=False)
+        penalty = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+        return self.get_numpy(penalty)
 
     def reset(self):
         # Initialize Reward and Step Count
@@ -111,7 +112,7 @@ class env():
 
         self.interface.getInputContainer()['Control | Engine Start Switch'].value = True
 
-        while len(self.rewfeatures) < 32:
+        while len(self.rewfeatures) < self.args.seq_len:
             state, reward = self._get_obs()
 
         return state, reward
@@ -152,10 +153,10 @@ class env():
 
     def _get_obs(self):
         penalty = 0
-        swingpos = self.interface.getOutputContainer()['Actuator Swing Position'].value
-        BoomLinPos = self.interface.getOutputContainer()['Actuator Boom Position'].value
-        BuckLinPos = self.interface.getOutputContainer()['Actuator Bucket Position'].value
-        StickLinPos = self.interface.getOutputContainer()['Actuator Arm Position'].value
+        swingpos = self.interface.getOutputContainer()['State | Actuator Swing Position'].value
+        BoomLinPos = self.interface.getOutputContainer()['State | Actuator Boom Position'].value
+        BuckLinPos = self.interface.getOutputContainer()['State | Actuator Bucket Position'].value
+        StickLinPos = self.interface.getOutputContainer()['State | Actuator Arm Position'].value
         states = np.array([swingpos, BoomLinPos, BuckLinPos, StickLinPos])
 
         states = (states - np.mean(states)) / np.std(states)
@@ -178,9 +179,9 @@ class env():
 
         self.rewfeatures.append(RewardVal)
 
-        if len(self.rewfeatures) >= 32:
-            _, mu, logvar = self.get_distribution(torch.tensor(self.rewfeatures[:-32]).float(), torch.tensor(self.rewfeatures[-1]).float())
-            penalty = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+        if len(self.rewfeatures) >= self.args.seq_len:
+            trainfeatures = np.array(self.rewfeatures)
+            penalty = self.get_penalty(torch.tensor(trainfeatures[-self.args.seq_len:,:]).float(), torch.tensor(trainfeatures[-1,:]).float())
 
         return states, -penalty
 
