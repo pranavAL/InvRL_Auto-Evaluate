@@ -1,0 +1,19 @@
+Vortex Studio version 2021.1.0.165
+Running application is C:\Users\Prana\anaconda3\envs\myenv\python.exe (desktop-vqmsq7m:12472)
+Command line arguments are:
+python
+train.py
+-sq 8
+-mp 32seq_lstm_vae_w_class.pth
+
+Mon Feb 28 06:59:40 2022 - INFO - ApplicationConfigSerializer: loading 'Setup.vxc'.
+Mon Feb 28 06:59:40 2022 - DEBUG - VxPluginManager - Loading plugin file: C:/CM Labs/Vortex Studio 2021a/plugins/VxFoundationPlugin.vxp
+Mon Feb 28 06:59:40 2022 - DEBUG - VxPluginManager - Loading plugin file: C:/CM Labs/Vortex Studio 2021a/plugins/VxDynamicsPlugin.vxp
+Mon Feb 28 06:59:40 2022 - DEBUG - VindsInitialize: kernel_bvb_inl_rrt will use AVX and FMA vectorization intrinsics.
+Mon Feb 28 06:59:40 2022 - DEBUG - VxPluginManager - Loading plugin file: C:/CM Labs/Vortex Studio 2021a/plugins/VxQtModule.vxp
+Mon Feb 28 06:59:41 2022 - DEBUG - VxPluginManager - Loading plugin file: C:/CM Labs/Vortex Studio 2021a/plugins/VxPlayerPlugin.vxp
+Mon Feb 28 06:59:41 2022 - DEBUG - VxPluginManager - Loading plugin file: C:/CM Labs/Vortex Studio 2021a/plugins/ContentDebugger.vxp
+Mon Feb 28 06:59:41 2022 - DEBUG - VxPluginManager - Loading plugin file: C:/CM Labs/Vortex Studio 2021a/plugins/Camera.vxp
+Mon Feb 28 06:59:41 2022 - DEBUG - MonitorInfo: Enumerating Windows Display.
+Mon Feb 28 06:59:41 2022 - DEBUG - VxPluginManager - Loading plugin file: C:/CM Labs/Vortex Studio 2021a/plugins/VxGraphicsPlugin.vxp
+Mon Feb 28 06:59:41 2022 - DEBUG - VxApplication: Frame rate set to 60 Hz

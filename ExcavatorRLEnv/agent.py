@@ -18,8 +18,8 @@ class Agent:
         self.lr_actor = args.lr_act
         self.lr_critic = args.lr_crit
         self.is_training_mode = True
-        self.state_dim = 12
-        self.action_dim = 8
+        self.state_dim = 4
+        self.action_dim = 4
         self.action_std = 0.5
         self.gamma = args.gamma
         self.lam = args.lam

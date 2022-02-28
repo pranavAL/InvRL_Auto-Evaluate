@@ -25,7 +25,7 @@ parser.add_argument('-gam','--gamma', type=float, default=0.1, help='weighting f
 parser.add_argument('-fcd','--fc_dim', type=int, default=64, help="Number of FC Nodes")
 parser.add_argument('-lr','--learning_rate', type=float, default=0.0001, help="Neural Network Learning Rate")
 parser.add_argument('-mp', '--model_path', type=str, help="Saved model path", required=True)
-parser.add_argument('-istr','--is_train', type=bool, help="Train or Testing", required=True)
+parser.add_argument('-istr','--is_train', type=bool, help="Train or Testing")
 args = parser.parse_args()
 
 class CraneDataset(Dataset):

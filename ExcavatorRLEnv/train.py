@@ -1,6 +1,7 @@
 import os
 import sys
-sys.path.append(r'C:\CM Labs\Vortex Studio 2022.1\bin')
+sys.path.append(r'C:\CM Labs\Vortex Studio 2021a\bin')
+sys.path.append(r'C:\Users\Prana\Desktop\CM_Labs\MongoDB-Share\InvRL_Auto-Evaluate')
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -23,7 +24,7 @@ is_training = args.is_training
 
 if __name__ == "__main__":
 
-    env = env()
+    env = env(args)
     wandb.init(name="Excavator Learning Policy", config=args)
 
     agent = Agent(args)
@@ -43,17 +44,15 @@ if __name__ == "__main__":
             agent = Agent(args)
             time.sleep(5)
             agent.load_weights()
-            state, _ = env.reset()
-            env.interface.getInputContainer()['Episode'].value = str(i_ep)
+            state = env.reset()
 
             for t in range(int(args.steps_per_episode)):
                 action = agent.act(state, is_training)
                 state_, reward, done, _ = env.step(list(action))
-                mean_score.append(sum(reward))
-                mean_sand.append(reward[-1])
-                env.interface.getInputContainer()['Reward'].value = str(sum(reward))
+                mean_score.append(reward)
+                mean_sand.append(reward)
 
-                agent.save_eps(state, sum(reward), action, done, state_)
+                agent.save_eps(state, reward, action, done, state_)
                 state = state_
 
                 if done:
@@ -61,7 +60,7 @@ if __name__ == "__main__":
 
             agent.memory.saveBuffer()
 
-            wandb.log({"Average Total Reward":np.mean(mean_score)})
-            wandb.log({"Average Sand":np.mean(mean_sand)})
+            # wandb.log({"Average Total Reward":np.mean(mean_score)})
+            # wandb.log({"Average Sand":np.mean(mean_sand)})
             i_ep += 1
     del env

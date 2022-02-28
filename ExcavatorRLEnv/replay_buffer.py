@@ -8,10 +8,10 @@ class Memory:
 
     def save_eps(self, state, reward, action, done, next_state):
         self.buffer["rewards"].append(reward)
-        self.buffer["states"].append(state.tolist())
+        self.buffer["states"].append(state)
         self.buffer["actions"].append(action)
         self.buffer["dones"].append(float(done))
-        self.buffer["next_states"].append(next_state.tolist())
+        self.buffer["next_states"].append(next_state)
 
     def clearMemory(self):
         self.buffer = {}

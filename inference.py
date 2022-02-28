@@ -21,7 +21,8 @@ df = pd.read_csv(os.path.join("datasets","features_to_train.csv"))
 df_train = pd.read_csv(os.path.join("datasets","train_df.csv"))
 color_cycle = {0:(0,0,1), 1:(0,1,0), 2:(1,0,0), 3:(1,0,1), 4:(1,1,0)}
 
-train_feats = ['Bucket Angle','Bucket Height']
+train_feats = ['Bucket Angle','Bucket Height','Engine Average Power','Current Engine Power','Engine Torque', 'Engine Torque Average',
+        'Engine RPM (%)', 'Tracks Ground Pressure Front Left', 'Tracks Ground Pressure Front Right']
 
 def normalize(df):
     df.loc[:,train_feats] = ((df.loc[:,train_feats] - df.loc[:,train_feats].min())

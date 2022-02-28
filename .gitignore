@@ -12,3 +12,4 @@ None
 __pycache__
 MongoDB-Share
 outputs
+.log
