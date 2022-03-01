@@ -14,3 +14,4 @@ MongoDB-Share
 outputs
 .log
 ExcavatorRLEnv/*.log
+InvRL_Auto-Evaluate

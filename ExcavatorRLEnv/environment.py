@@ -9,6 +9,8 @@ import math
 import torch
 import os
 from train_LSTM import LSTMPredictor
+from numpy.linalg import norm
+from math import dist
 
 SUB_STEPS = 5
 MAX_STEPS = 200
@@ -36,9 +38,9 @@ class env():
         self.display.getInput(Vortex.DisplayICD.kPlacement).setValue(Vortex.VxVector4(500, 500, 1280, 720))
 
         #Standardisation
-        self.min = [-2.390703, -0.786492, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        self.min = [-2.390703, -0.786492, 0.0, 0.0, 0.0, 0.0, 0.0]
         self.max = [2.202948, 5.192437, 38.898521, 146173.979222, 889.100139,
-                    73.347609, 1866.730765, 226386.504786, 120065.185196]
+                    73.347609, 1866.730765]
 
         model_name = f"{self.args.model_path.split('.')[0]}"
         model_path = os.path.join('..','save_model', self.args.model_path)
@@ -113,6 +115,7 @@ class env():
             self.application.update()
 
         self.ControlInterface.getInputContainer()['Control | Engine Start Switch'].value = True
+        self.goals = self.get_goals()
 
         while len(self.rewfeatures) < self.args.seq_len:
             state, reward = self._get_obs()
@@ -154,7 +157,7 @@ class env():
 
 
     def _get_obs(self):
-        penalty = 0
+        reward = 0
         swingpos = self.ControlInterface.getOutputContainer()['State | Actuator Swing Position'].value
         BoomLinPos = self.ControlInterface.getOutputContainer()['Actuator Boom Position'].value
         BuckLinPos = self.ControlInterface.getOutputContainer()['Actuator Bucket Position'].value
@@ -168,15 +171,9 @@ class env():
         EngTor = self.MetricsInterface.getOutputContainer()['Engine Torque'].value
         EngTorAvg = self.MetricsInterface.getOutputContainer()['Engine Torque Average'].value
         Engrpm = self.MetricsInterface.getOutputContainer()['Engine RPM (%)'].value
-        PressLeft = self.MetricsInterface.getOutputContainer()['Tracks Ground Pressure Front Left'].value
-        PressRight = self.MetricsInterface.getOutputContainer()['Tracks Ground Pressure Front Right'].value
-
-        herustic_reward, new_step = self.get_heuristics(self.MetricsInterface, self.last_step)
-        self.last_step = new_step
 
         RewardVal = [BuckAng, BuckHeight, EngAvgPow, CurrEngPow, EngTor, EngTorAvg,
-                    Engrpm, PressLeft, PressRight]
-        print(RewardVal)            
+                    Engrpm]
 
         RewardVal = list(np.divide(np.subtract(np.array(RewardVal), np.array(self.min)),
                                    np.subtract(np.array(self.max), np.array(self.min))))
@@ -186,8 +183,11 @@ class env():
         if len(self.rewfeatures) >= self.args.seq_len:
             trainfeatures = np.array(self.rewfeatures)
             penalty = self.get_penalty(torch.tensor(trainfeatures[-self.args.seq_len:,:]).float(), torch.tensor(trainfeatures[-1,:]).float())
+            reward = -penalty - dist(self.goal2,BoomLinPos) - dist(self.goal2,BuckLinPos) - dist(self.goal2,StickLinPos)
 
-        return states, -penalty
+        self.get_heuristics()    
+
+        return states, reward
 
     def render(self, active=True):
 
@@ -205,31 +205,33 @@ class env():
                 self.application.remove(current_displays[0])
             self.application.setSyncMode(Vortex.kSyncNone)
 
-    def get_heuristics(self, MetricsInterface, last_step):
-        self.arc_restart = MetricsInterface.getOutputContainer()['Number of times user had to restart an arc'].value
-        self.cur_score = MetricsInterface.getOutputContainer()['Current path score'].value
-        self.tot_out_path = MetricsInterface.getOutputContainer()['Total time out of path'].value
-        self.cur_pat_tim = MetricsInterface.getOutputContainer()['Current path time'].value
-        self.avg_tim_pat = MetricsInterface.getOutputContainer()['Average time per path'].value
-        self.avg_sco_pat = MetricsInterface.getOutputContainer()['Average score per path'].value
-        self.cur_pat_out_time = MetricsInterface.getOutputContainer()['Current path time out of range'].value
-        self.avg_pat_out_time = MetricsInterface.getOutputContainer()['Average time out of path range'].value
-        self.ball_knock = MetricsInterface.getOutputContainer()['Number of tennis balls knocked over by operator'].value
-        self.pole_touch = MetricsInterface.getOutputContainer()['Number of poles touched'].value
-        self.pole_fell = MetricsInterface.getOutputContainer()['Number of poles that fell over'].value
-        self.barr_touch = MetricsInterface.getOutputContainer()['Number of barrels touches'].value
-        self.barr_knock = MetricsInterface.getOutputContainer()['Number of barrels knocked over'].value
-        self.equip_coll = MetricsInterface.getOutputContainer()['Number of equipment collisions'].value
-        self.num_idle = MetricsInterface.getOutputContainer()['Number of times machine was left idling'].value
-        self.buck_self = MetricsInterface.getOutputContainer()['Bucket Self Contact'].value
-        self.rat_idle = MetricsInterface.getOutputContainer()['Ratio of time that operator runs equipment vs idle time'].value
-        self.coll_env = MetricsInterface.getOutputContainer()['Collisions with environment'].value
-        self.num_goal = MetricsInterface.getOutputContainer()['Exercise Number of goals met'].value
-        self.ex_time = MetricsInterface.getOutputContainer()['Exercise Time'].value
+    def get_heuristics(self):
+        self.arc_restart = self.MetricsInterface.getOutputContainer()['Number of times user had to restart an arc'].value
+        self.cur_score = self.MetricsInterface.getOutputContainer()['Current path score'].value
+        self.tot_out_path = self.MetricsInterface.getOutputContainer()['Total time out of path'].value
+        self.cur_pat_tim = self.MetricsInterface.getOutputContainer()['Current path time'].value
+        self.avg_tim_pat = self.MetricsInterface.getOutputContainer()['Average time per path'].value
+        self.avg_sco_pat = self.MetricsInterface.getOutputContainer()['Average score per path'].value
+        self.cur_pat_out_time = self.MetricsInterface.getOutputContainer()['Current path time out of range'].value
+        self.avg_pat_out_time = self.MetricsInterface.getOutputContainer()['Average time out of path range'].value
+        self.ball_knock = self.MetricsInterface.getOutputContainer()['Number of tennis balls knocked over by operator'].value
+        self.pole_touch = self.MetricsInterface.getOutputContainer()['Number of poles touched'].value
+        self.pole_fell = self.MetricsInterface.getOutputContainer()['Number of poles that fell over'].value
+        self.barr_touch = self.MetricsInterface.getOutputContainer()['Number of barrels touches'].value
+        self.barr_knock = self.MetricsInterface.getOutputContainer()['Number of barrels knocked over'].value
+        self.equip_coll = self.MetricsInterface.getOutputContainer()['Number of equipment collisions'].value
+        self.num_idle = self.MetricsInterface.getOutputContainer()['Number of times machine was left idling'].value
+        self.buck_self = self.MetricsInterface.getOutputContainer()['Bucket Self Contact'].value
+        self.rat_idle = self.MetricsInterface.getOutputContainer()['Ratio of time that operator runs equipment vs idle time'].value
+        self.coll_env = self.MetricsInterface.getOutputContainer()['Collisions with environment'].value
+        self.num_goal = self.MetricsInterface.getOutputContainer()['Exercise Number of goals met'].value
+        self.ex_time = self.MetricsInterface.getOutputContainer()['Exercise Time'].value
 
-        new_step = np.array([self.barr_knock, self.barr_touch, self.pole_fell, self.pole_touch, self.ball_knock, self.equip_coll,
-                             self.coll_env, self.num_goal])
-        diff = np.subtract(new_step, last_step)
-        reward = -1 * sum(diff[:-1]) + 1 * diff[-1]
-
-        return reward, new_step
+    def get_goals(self):
+        self.goal2 = self.MetricsInterface.getOutputContainer()['Path2 Easy Transform'].value
+        self.goal3 = self.MetricsInterface.getOutputContainer()['Path3 Easy Transform'].value
+        self.goal4 = self.MetricsInterface.getOutputContainer()['Path4 Easy Transform'].value
+        self.goal5 = self.MetricsInterface.getOutputContainer()['Path5 Easy Transform'].value
+        self.goal6 = self.MetricsInterface.getOutputContainer()['Path6 Easy Transform'].value
+        self.goal7 = self.MetricsInterface.getOutputContainer()['Path7 Easy Transform'].value
+        self.goal8 = self.MetricsInterface.getOutputContainer()['Path8 Easy Transform'].value

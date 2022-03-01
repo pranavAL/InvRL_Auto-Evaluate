@@ -24,7 +24,7 @@ parser.add_argument('-kldc','--beta', type=float, default=0.001, help='weighting
 parser.add_argument('-gam','--gamma', type=float, default=0.1, help='weighting factor of MSE')
 parser.add_argument('-fcd','--fc_dim', type=int, default=64, help="Number of FC Nodes")
 parser.add_argument('-lr','--learning_rate', type=float, default=0.0001, help="Neural Network Learning Rate")
-parser.add_argument('-mp', '--model_path', type=str, default='32seq_lstm_vae_w_class.pth', help="Saved model path")
+parser.add_argument('-mp', '--model_path', type=str, default='lstm_vae.pth', help="Saved model path")
 parser.add_argument('-istr','--is_train', type=bool, help="Train or Testing")
 args = parser.parse_args()
 
@@ -212,7 +212,7 @@ if __name__ == "__main__":
         batch_size = args.batch_size
     )
 
-    model_path = os.path.join('save_model',f"{args.seq_len}seq_lstm_vae_w_class.pth")
+    model_path = os.path.join('save_model',f"lstm_vae.pth")
     wandb.init(name = f"{args.seq_len}seq_lstm_vae_Recon_w_class")
 
     train_loader = dm.train_dataloader()

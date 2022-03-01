@@ -52,7 +52,7 @@ class Agent:
         old_values = old_values.detach()
 
         distribution = MultivariateNormal(action_mean, self.cov_mat)
-        dist_entropy = distribution.entropy().float().to(self.args.device).mean()
+        dist_entropy = distribution.entropy().to(self.args.device)
 
         advantages = self.generalized_advantage_estimation(values, rewards, next_values, dones).detach()
         returns = self.temporal_difference(rewards, next_values, dones).detach()
@@ -69,7 +69,7 @@ class Agent:
         ratios = torch.exp(logprobs - old_logprobs)
         surr1 = ratios * advantages
         surr2 = torch.clamp(ratios, 1 - self.policy_clip, 1 + self.policy_clip) * advantages
-        pg_loss = -torch.min(surr1, surr2).mean()
+        pg_loss = -torch.min(surr1, surr2).mean() - 0.01 * dist_entropy.mean()
 
         self.meta_data['Advantage'].append(advantages.mean().item())
         self.meta_data['Entropy'].append(dist_entropy.item())
