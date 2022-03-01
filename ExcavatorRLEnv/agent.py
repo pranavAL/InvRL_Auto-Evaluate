@@ -72,7 +72,7 @@ class Agent:
         pg_loss = -torch.min(surr1, surr2).mean() - 0.01 * dist_entropy.mean()
 
         self.meta_data['Advantage'].append(advantages.mean().item())
-        self.meta_data['Entropy'].append(dist_entropy.item())
+        self.meta_data['Entropy'].append(dist_entropy.mean().item())
         self.meta_data['TD'].append(returns.mean().item())
         self.meta_data['Critic_Loss'].append(critic_loss.item())
         self.meta_data['KL'].append(ratios.mean().item())
