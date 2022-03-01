@@ -18,7 +18,7 @@ parser = argparse.ArgumentParser(description="Hyperparameter Values")
 parser.add_argument('-sq','--seq_len', default=32, type=int, help="Sequence Length for input to LSTM")
 parser.add_argument('-bs','--batch_size', type=int, default=8, help="Batch Size")
 parser.add_argument('-me','--max_epochs', type=int, default=1000, help="Number of epchs to train")
-parser.add_argument('-nf','--n_features', type=int, default=9, help="Length of feature for each sample")
+parser.add_argument('-nf','--n_features', type=int, default=7, help="Length of feature for each sample")
 parser.add_argument('-ls','--latent_spc', type=int,default=8, help='Size of Latent Space')
 parser.add_argument('-kldc','--beta', type=float, default=0.001, help='weighting factor of KLD')
 parser.add_argument('-gam','--gamma', type=float, default=0.1, help='weighting factor of MSE')
@@ -52,7 +52,7 @@ class CraneDatasetModule():
     def get_data(self, file_type):
 
         train_feats = ['Bucket Angle','Bucket Height','Engine Average Power','Current Engine Power','Engine Torque', 'Engine Torque Average',
-                'Engine RPM (%)', 'Tracks Ground Pressure Front Left', 'Tracks Ground Pressure Front Right']
+                'Engine RPM (%)']
 
         train_data_path = os.path.join("datasets",file_type)
 
