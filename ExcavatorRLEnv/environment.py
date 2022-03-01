@@ -156,12 +156,10 @@ class env():
     def _get_obs(self):
         penalty = 0
         swingpos = self.ControlInterface.getOutputContainer()['State | Actuator Swing Position'].value
-        BoomLinPos = self.ControlInterface.getOutputContainer()['State | Actuator Boom Position'].value
-        BuckLinPos = self.ControlInterface.getOutputContainer()['State | Actuator Bucket Position'].value
-        StickLinPos = self.ControlInterface.getOutputContainer()['State | Actuator Arm Position'].value
-        states = np.array([swingpos, BoomLinPos, BuckLinPos, StickLinPos])
-
-        states = (states - np.mean(states)) / np.std(states)
+        BoomLinPos = self.ControlInterface.getOutputContainer()['Actuator Boom Position'].value
+        BuckLinPos = self.ControlInterface.getOutputContainer()['Actuator Bucket Position'].value
+        StickLinPos = self.ControlInterface.getOutputContainer()['Actuator Arm Position'].value
+        states = np.array([swingpos, *BoomLinPos, *BuckLinPos, *StickLinPos])
 
         BuckAng = self.MetricsInterface.getOutputContainer()['Bucket Angle'].value
         BuckHeight = self.MetricsInterface.getOutputContainer()['Bucket Height'].value
