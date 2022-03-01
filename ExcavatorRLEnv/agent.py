@@ -31,11 +31,9 @@ class Agent:
         self.policy_old.load_state_dict(self.policy.state_dict())
         self.betas = (0.9, 0.999)
 
-        self.policy_actor_optimizer = torch.optim.Adam(self.policy.actor_layer.parameters(), lr=self.lr_actor, betas=self.betas)
-        self.policy_critic_optimizer = torch.optim.Adam(self.policy.critic_layer.parameters(), lr=self.lr_critic, betas=self.betas)
-        self.actor_scheduler = torch.optim.lr_scheduler.StepLR(self.policy_actor_optimizer, step_size=5000, gamma=0.96)
-        self.critic_scheduler = torch.optim.lr_scheduler.StepLR(self.policy_critic_optimizer, step_size=5000, gamma=0.96)
-
+        self.policy_optimizer = torch.optim.Adam(self.policy.parameters(), lr=self.lr_actor, betas=self.betas)
+        self.scheduler = torch.optim.lr_scheduler.StepLR(self.policy_optimizer, step_size=5000, gamma=0.96)
+        
         self.memory = Memory()
         self.action_var = torch.full((self.action_dim,), self.action_std * self.action_std).to(self.args.device)
         self.cov_mat = torch.diag_embed(self.action_var).to(self.args.device).detach()
@@ -71,6 +69,8 @@ class Agent:
         surr2 = torch.clamp(ratios, 1 - self.policy_clip, 1 + self.policy_clip) * advantages
         pg_loss = -torch.min(surr1, surr2).mean() - 0.01 * dist_entropy.mean()
 
+        loss = pg_loss + critic_loss
+
         self.meta_data['Advantage'].append(advantages.mean().item())
         self.meta_data['Entropy'].append(dist_entropy.mean().item())
         self.meta_data['TD'].append(returns.mean().item())
@@ -78,7 +78,7 @@ class Agent:
         self.meta_data['KL'].append(ratios.mean().item())
         self.meta_data['Policy_Loss'].append(pg_loss.item())
 
-        return critic_loss, pg_loss
+        return loss
 
     def act(self, state, is_training=True):
 
@@ -107,17 +107,12 @@ class Agent:
 
         for epoch in range(self.PPO_epochs):
 
-            critic_loss, pg_loss = self.evaluate_loss(states, actions, rewards, next_states, dones)
-            self.policy_critic_optimizer.zero_grad()
-            self.policy_actor_optimizer.zero_grad()
+            loss = self.evaluate_loss(states, actions, rewards, next_states, dones)
+            self.policy_optimizer.zero_grad()
 
-            critic_loss.backward()
-            self.policy_critic_optimizer.step()
+            loss.backward()
 
-            pg_loss.backward()
-            self.policy_actor_optimizer.step()
-            self.critic_scheduler.step()
-            self.actor_scheduler.step()
+            self.scheduler.step()
 
         self.memory.deleteBuffer()
         self.policy_old.load_state_dict(self.policy.state_dict())
