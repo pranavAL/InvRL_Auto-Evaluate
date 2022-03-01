@@ -38,16 +38,17 @@ if __name__ == "__main__":
         env.render()
         if 'saved_buffer.pkl' not in os.listdir():
             print(f"Collecting Episode: {i_ep}")
-            mean_score = []
             agent = Agent(args)
             time.sleep(5)
             agent.load_weights()
             state, _ = env.reset()
+            mean_reward = []
 
             for t in range(int(args.steps_per_episode)):
                 action = agent.act(state, is_training)
                 state_, reward, done, _ = env.step(list(action))
-                mean_score.append(reward)
+                mean_reward.append(reward)
+                wandb.log({"Reward per step":reward})
 
                 agent.save_eps(state, reward, action, done, state_)
                 state = state_
@@ -56,8 +57,7 @@ if __name__ == "__main__":
                     break
 
             agent.memory.saveBuffer()
-
-            wandb.log({"Average Total Reward":np.mean(mean_score)})
+            wandb.log({'Avg. Reward per Episode':np.mean(mean_reward)})
             wandb.log({'Exercise Number of goals met':env.num_goal})
             wandb.log({'Collisions with environment':env.coll_env})
             wandb.log({'Number of times machine was left idling':env.num_idle})
@@ -70,5 +70,6 @@ if __name__ == "__main__":
             wandb.log({'Number of equipment collisions':env.equip_coll})
             wandb.log({'Exercise Number of goals met':env.num_goal})
             wandb.log({'Exercise Time':env.ex_time})
+
             i_ep += 1
     del env
