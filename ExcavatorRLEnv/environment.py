@@ -176,6 +176,7 @@ class env():
 
         RewardVal = [BuckAng, BuckHeight, EngAvgPow, CurrEngPow, EngTor, EngTorAvg,
                     Engrpm, PressLeft, PressRight]
+        print(RewardVal)            
 
         RewardVal = list(np.divide(np.subtract(np.array(RewardVal), np.array(self.min)),
                                    np.subtract(np.array(self.max), np.array(self.min))))
