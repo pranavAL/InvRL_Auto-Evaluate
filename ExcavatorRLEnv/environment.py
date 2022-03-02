@@ -9,7 +9,6 @@ import math
 import torch
 import os
 from train_LSTM import LSTMPredictor
-from numpy.linalg import norm
 from math import dist
 
 SUB_STEPS = 5
@@ -77,7 +76,6 @@ class env():
         self.current_step = 0
         self.reward = 0
         self.rewfeatures = []
-        self.last_step = np.zeros(8)
 
         # The first time we load the scene
         if self.vxscene is None:
@@ -155,7 +153,6 @@ class env():
 
         return obs, reward, done, {}
 
-
     def _get_obs(self):
         reward = 0
         swingpos = self.ControlInterface.getOutputContainer()['State | Actuator Swing Position'].value
@@ -163,7 +160,6 @@ class env():
         BuckLinPos = self.ControlInterface.getOutputContainer()['Actuator Bucket Position'].value
         StickLinPos = self.ControlInterface.getOutputContainer()['Actuator Arm Position'].value
         states = np.array([swingpos, *BoomLinPos, *BuckLinPos, *StickLinPos])
-        states = (states - np.mean(states))/ (np.std(states))
 
         BuckAng = self.MetricsInterface.getOutputContainer()['Bucket Angle'].value
         BuckHeight = self.MetricsInterface.getOutputContainer()['Bucket Height'].value
@@ -184,7 +180,8 @@ class env():
         if len(self.rewfeatures) >= self.args.seq_len:
             trainfeatures = np.array(self.rewfeatures)
             penalty = self.get_penalty(torch.tensor(trainfeatures[-self.args.seq_len:,:]).float(), torch.tensor(trainfeatures[-1,:]).float())
-            reward = -penalty - dist(self.goal2,BoomLinPos) - dist(self.goal2,BuckLinPos) - dist(self.goal2,StickLinPos)
+
+        reward =  1 - (dist(self.goal2,BoomLinPos) + dist(self.goal2,BuckLinPos) + dist(self.goal2,StickLinPos))/20.0
 
         self.get_heuristics()
 
