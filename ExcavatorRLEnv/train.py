@@ -29,8 +29,6 @@ if __name__ == "__main__":
 
     agent = Agent(args)
 
-    #agent.lets_init_weights()
-
     i_ep = 0
     agent.save_weights()
 

@@ -20,9 +20,9 @@ class PPO(nn.Module):
 
         self.critic_layer = nn.Sequential(
                                     nn.Linear(state_dim, self.l1_nodes),
-                                    nn.ReLU(),
+                                    nn.Tanh(),
                                     nn.Linear(self.l1_nodes, self.l1_nodes),
-                                    nn.ReLU(),
+                                    nn.Tanh(),
                                     nn.Linear(self.l1_nodes, 1)).float().to(args.device)
     def lets_init_weights(self):
         self.actor_layer.apply(self.init_weights)

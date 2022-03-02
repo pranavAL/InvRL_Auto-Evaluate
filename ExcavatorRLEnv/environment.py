@@ -12,7 +12,6 @@ from train_LSTM import LSTMPredictor
 from math import dist
 
 SUB_STEPS = 5
-MAX_STEPS = 200
 
 class env():
 
@@ -113,7 +112,7 @@ class env():
             self.application.update()
 
         self.ControlInterface.getInputContainer()['Control | Engine Start Switch'].value = True
-        self.goals = self.get_goals()
+        self.get_goals()
 
         while len(self.rewfeatures) < self.args.seq_len:
             state, reward = self._get_obs()
@@ -144,7 +143,7 @@ class env():
         obs, reward = self._get_obs()
 
         # Done flag
-        if self.current_step >= MAX_STEPS:
+        if self.current_step >= self.args.steps_per_episode:
             done = True
         else:
             done = False
@@ -159,7 +158,8 @@ class env():
         BoomLinPos = self.ControlInterface.getOutputContainer()['Actuator Boom Position'].value
         BuckLinPos = self.ControlInterface.getOutputContainer()['Actuator Bucket Position'].value
         StickLinPos = self.ControlInterface.getOutputContainer()['Actuator Arm Position'].value
-        states = np.array([swingpos, *BoomLinPos, *BuckLinPos, *StickLinPos])
+        states = np.array([swingpos, *BoomLinPos, *BuckLinPos, *StickLinPos, *self.goal2])
+        states = (states - np.mean(states))/(np.std(states))
 
         BuckAng = self.MetricsInterface.getOutputContainer()['Bucket Angle'].value
         BuckHeight = self.MetricsInterface.getOutputContainer()['Bucket Height'].value
@@ -181,7 +181,7 @@ class env():
             trainfeatures = np.array(self.rewfeatures)
             penalty = self.get_penalty(torch.tensor(trainfeatures[-self.args.seq_len:,:]).float(), torch.tensor(trainfeatures[-1,:]).float())
 
-        reward =  1 - (dist(self.goal2,BoomLinPos) + dist(self.goal2,BuckLinPos) + dist(self.goal2,StickLinPos))/20.0
+        reward =  1 - (dist(self.goal2,BuckLinPos))/10.0
 
         self.get_heuristics()
 

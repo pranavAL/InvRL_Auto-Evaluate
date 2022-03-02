@@ -3,6 +3,7 @@ import time
 import wandb
 import torch
 import numpy as np
+import torch.nn as nn
 from network import PPO
 from arguments import get_args
 from replay_buffer import Memory
@@ -18,9 +19,9 @@ class Agent:
         self.lr_actor = args.lr_act
         self.lr_critic = args.lr_crit
         self.is_training_mode = True
-        self.state_dim = 10
+        self.state_dim = 13
         self.action_dim = 4
-        self.action_std = 0.5
+        self.action_std = 0.6
         self.gamma = args.gamma
         self.lam = args.lam
         self.args = args
@@ -31,12 +32,15 @@ class Agent:
         self.policy_old.load_state_dict(self.policy.state_dict())
         self.betas = (0.9, 0.999)
 
-        self.policy_optimizer = torch.optim.Adam(self.policy.parameters(), lr=self.lr_actor, betas=self.betas)
-        self.scheduler = torch.optim.lr_scheduler.StepLR(self.policy_optimizer, step_size=5000, gamma=0.96)
-        
+        self.policy_optimizer = torch.optim.Adam([
+                                    {'params': self.policy.actor_layer.parameters(), 'lr':self.lr_actor, 'betas':self.betas},
+                                    {'params': self.policy.critic_layer.parameters(), 'lr':self.lr_critic, 'betas':self.betas}
+                                    ])
+
         self.memory = Memory()
         self.action_var = torch.full((self.action_dim,), self.action_std * self.action_std).to(self.args.device)
         self.cov_mat = torch.diag_embed(self.action_var).to(self.args.device).detach()
+        self.mseloss = nn.MSELoss()
 
     def save_eps(self, state, reward, action, done, next_state):
         self.memory.save_eps(state, reward, action, done, next_state)
@@ -55,10 +59,7 @@ class Agent:
         advantages = self.generalized_advantage_estimation(values, rewards, next_values, dones).detach()
         returns = self.temporal_difference(rewards, next_values, dones).detach()
 
-        vpredclipped = old_values + torch.clamp(values - old_values, -self.value_clip, self.value_clip) # Minimize the difference between old value and new value
-        vf_losses1 = (returns - values).pow(2) # Mean Squared Error
-        vf_losses2 = (vpredclipped - returns).pow(2) # Mean Squared Error
-        critic_loss = torch.max(vf_losses1, vf_losses2).mean() * 0.5
+        critic_loss = self.mseloss(returns, values) * 0.5
 
         logprobs = distribution.log_prob(actions).float().to(self.args.device)
         old_distribution = MultivariateNormal(old_action_mean, self.cov_mat)
@@ -67,16 +68,16 @@ class Agent:
         ratios = torch.exp(logprobs - old_logprobs)
         surr1 = ratios * advantages
         surr2 = torch.clamp(ratios, 1 - self.policy_clip, 1 + self.policy_clip) * advantages
-        pg_loss = -torch.min(surr1, surr2).mean() - 0.01 * dist_entropy.mean()
+        pg_loss = -torch.min(surr1, surr2) - 0.01 * dist_entropy
 
         loss = pg_loss + critic_loss
 
         self.meta_data['Advantage'].append(advantages.mean().item())
         self.meta_data['Entropy'].append(dist_entropy.mean().item())
         self.meta_data['TD'].append(returns.mean().item())
-        self.meta_data['Critic_Loss'].append(critic_loss.item())
+        self.meta_data['Critic_Loss'].append(critic_loss.mean().item())
         self.meta_data['KL'].append(ratios.mean().item())
-        self.meta_data['Policy_Loss'].append(pg_loss.item())
+        self.meta_data['Policy_Loss'].append(pg_loss.mean().item())
 
         return loss
 
@@ -110,9 +111,8 @@ class Agent:
             loss = self.evaluate_loss(states, actions, rewards, next_states, dones)
             self.policy_optimizer.zero_grad()
 
-            loss.backward()
-
-            self.scheduler.step()
+            loss.mean().backward()
+            self.policy_optimizer.step()
 
         self.memory.deleteBuffer()
         self.policy_old.load_state_dict(self.policy.state_dict())
