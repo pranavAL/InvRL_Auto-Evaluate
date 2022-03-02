@@ -163,6 +163,7 @@ class env():
         BuckLinPos = self.ControlInterface.getOutputContainer()['Actuator Bucket Position'].value
         StickLinPos = self.ControlInterface.getOutputContainer()['Actuator Arm Position'].value
         states = np.array([swingpos, *BoomLinPos, *BuckLinPos, *StickLinPos])
+        states = (states - np.mean(states))/ (np.std(states))
 
         BuckAng = self.MetricsInterface.getOutputContainer()['Bucket Angle'].value
         BuckHeight = self.MetricsInterface.getOutputContainer()['Bucket Height'].value
@@ -185,7 +186,7 @@ class env():
             penalty = self.get_penalty(torch.tensor(trainfeatures[-self.args.seq_len:,:]).float(), torch.tensor(trainfeatures[-1,:]).float())
             reward = -penalty - dist(self.goal2,BoomLinPos) - dist(self.goal2,BuckLinPos) - dist(self.goal2,StickLinPos)
 
-        self.get_heuristics()    
+        self.get_heuristics()
 
         return states, reward
 
