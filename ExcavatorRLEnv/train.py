@@ -1,7 +1,7 @@
 import os
 import sys
 sys.path.append(r'C:\CM Labs\Vortex Studio 2021a\bin')
-sys.path.append(r'C:\Users\Prana\Desktop\CM_Labs\MongoDB-Share\InvRL_Auto-Evaluate')
+sys.path.append(r'C:\Users\Prana\Desktop\CM_Labs\InvRL_Auto-Evaluate')
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -17,11 +17,11 @@ from environment import env
 from arguments import get_args
 import torch.nn.functional as F
 
-args = get_args()
-is_training = args.is_training
-
 if __name__ == "__main__":
 
+    args = get_args()
+    is_training = args.is_training
+    
     env = env(args)
     wandb.init(name="Excavator Learning Policy", config=args)
 
