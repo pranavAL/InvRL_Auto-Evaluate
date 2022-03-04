@@ -46,7 +46,7 @@ if __name__ == "__main__":
                 mean_reward.append(reward)
                 mean_penalty.append(penalty)
 
-                agent.save_eps(state, reward, action, done, state_)
+                agent.save_eps(state, reward+penalty, action, done, state_)
                 state = state_
 
                 if done:

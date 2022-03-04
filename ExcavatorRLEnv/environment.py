@@ -115,7 +115,7 @@ class env():
         self.get_goals()
 
         while len(self.rewfeatures) < self.args.seq_len:
-            state, reward = self._get_obs()
+            state, reward, penalty = self._get_obs()
 
         return state, reward
 
@@ -140,7 +140,7 @@ class env():
             self.application.update()
 
         # Observations
-        obs, reward = self._get_obs()
+        obs, reward, penalty = self._get_obs()
 
         # Done flag
         if self.current_step >= self.args.steps_per_episode:
@@ -150,10 +150,11 @@ class env():
 
         self.current_step += 1
 
-        return obs, reward, done, {}
+        return obs, reward, penalty, done, {}
 
     def _get_obs(self):
         reward = 0
+        penalty = 0
         swingpos = self.ControlInterface.getOutputContainer()['State | Actuator Swing Position'].value
         BoomLinPos = self.ControlInterface.getOutputContainer()['Actuator Boom Position'].value
         BuckLinPos = self.ControlInterface.getOutputContainer()['Actuator Bucket Position'].value
@@ -185,7 +186,7 @@ class env():
 
         self.get_heuristics()
 
-        return states, reward
+        return states, reward, (1-penalty)
 
     def render(self, active=True):
 
