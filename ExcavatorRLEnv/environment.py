@@ -49,7 +49,9 @@ class env():
             seq_len = self.args.seq_len,
             batch_size = self.args.batch_size,
             latent_spc = self.args.latent_spc,
-            learning_rate = self.args.learning_rate
+            learning_rate = self.args.learning_rate,
+            epochs = self.args.max_epochs,
+            beta = self.args.beta
         )
 
         self.model.load_state_dict(torch.load(model_path))

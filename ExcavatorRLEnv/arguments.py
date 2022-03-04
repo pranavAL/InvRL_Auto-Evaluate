@@ -32,6 +32,8 @@ def get_args():
     parser.add_argument('-ls','--latent_spc', type=int,default=8, help='Size of Latent Space')
     parser.add_argument('-fcd','--fc_dim', type=int, default=64, help="Number of FC Nodes")
     parser.add_argument('-nf','--n_features', type=int, default=7, help="Length of feature for each sample")
+    parser.add_argument('-me','--max_epochs', type=int, default=1000, help="Number of epchs to train")
+    parser.add_argument('-kldc','--beta', type=float, default=0.001, help='weighting factor of KLD')
 
     args = parser.parse_args()
     args.is_training = bool(args.is_training)

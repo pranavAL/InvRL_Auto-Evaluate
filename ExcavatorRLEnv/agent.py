@@ -150,6 +150,8 @@ class Agent:
             pass
 
     def load_weights(self):
+        for i in range(500):
+            pass
         self.policy.load_state_dict(torch.load(os.path.join(self.args.save_dir,'actor_ppo.pth')))
         self.policy_old.load_state_dict(torch.load(os.path.join(self.args.save_dir,'old_actor_ppo.pth')))
 

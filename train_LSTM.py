@@ -126,7 +126,7 @@ class Decoder(nn.Module):
         return out, hidden
 
 class LSTMPredictor(pl.LightningModule):
-    def __init__(self, n_features, fc_dim, seq_len, batch_size, latent_spc, learning_rate):
+    def __init__(self, n_features, fc_dim, seq_len, batch_size, latent_spc, learning_rate, epochs, beta):
         super(LSTMPredictor,self).__init__()
         self.n_features = n_features
         self.fc_dim = fc_dim
@@ -134,6 +134,8 @@ class LSTMPredictor(pl.LightningModule):
         self.batch_size = batch_size
         self.learning_rate = learning_rate
         self.latent_spc = latent_spc
+        self.max_epochs = epochs
+        self.beta = beta
 
         self.encoder = Encoder(n_features, latent_spc, fc_dim)
         self.decoder = Decoder(n_features, fc_dim)
@@ -152,11 +154,11 @@ class LSTMPredictor(pl.LightningModule):
         else:
             batch_size = y_decod.size()[0]
             out = y_decod[:,0,:].unsqueeze(1)
-            for i in range(args.seq_len):
+            for i in range(self.seq_len):
                 out, hidden = self.decoder(out, hidden)
                 output.append(out)
             output = torch.stack(output, dim=0)
-            output = torch.reshape(output, (batch_size, args.seq_len, self.n_features))
+            output = torch.reshape(output, (batch_size, self.seq_len, self.n_features))
 
         return output, mu, logvar
 
@@ -169,7 +171,7 @@ class LSTMPredictor(pl.LightningModule):
 
         rloss = F.mse_loss(y_hat, y_decod)
         kld = -0.5 * torch.sum(1 + logvar -mu.pow(2) - logvar.exp())
-        beta = ((self.current_epoch//50)/args.max_epochs) * args.beta
+        beta = ((self.current_epoch//50)/self.max_epochs) * self.beta
 
         loss = rloss + kld * beta
 
@@ -227,7 +229,9 @@ if __name__ == "__main__":
         seq_len = args.seq_len,
         batch_size = args.batch_size,
         latent_spc = args.latent_spc,
-        learning_rate = args.learning_rate
+        learning_rate = args.learning_rate,
+        epochs = args.max_epochs,
+        beta = args.beta
     )
 
     wandb_logger = WandbLogger(project="lit-wandb")
