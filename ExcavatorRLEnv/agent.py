@@ -146,12 +146,8 @@ class Agent:
     def save_weights(self):
         torch.save(self.policy.state_dict(), os.path.join(self.args.save_dir,'actor_ppo.pth'))
         torch.save(self.policy_old.state_dict(), os.path.join(self.args.save_dir,'old_actor_ppo.pth'))
-        for i in range(100):
-            pass
 
     def load_weights(self):
-        for i in range(500):
-            pass
         self.policy.load_state_dict(torch.load(os.path.join(self.args.save_dir,'actor_ppo.pth')))
         self.policy_old.load_state_dict(torch.load(os.path.join(self.args.save_dir,'old_actor_ppo.pth')))
 
@@ -165,6 +161,7 @@ if __name__ == "__main__":
 
     while True:
         if 'saved_buffer.pkl' in os.listdir():
+            time.sleep(5)
             print(f"Updating after Episode: {i_ep}")
             agent.memory.loadBuffer()
             agent.load_weights()

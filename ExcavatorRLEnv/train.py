@@ -7,6 +7,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 import math
+import time
 import wandb
 import torch
 import numpy as np
@@ -21,7 +22,7 @@ if __name__ == "__main__":
 
     args = get_args()
     is_training = args.is_training
-    
+
     env = env(args)
     wandb.init(name="Excavator Learning Policy", config=args)
 
@@ -35,6 +36,7 @@ if __name__ == "__main__":
         if 'saved_buffer.pkl' not in os.listdir():
             print(f"Collecting Episode: {i_ep}")
             agent = Agent(args)
+            time.sleep(5)
             agent.load_weights()
             state, _ = env.reset()
             mean_reward = []

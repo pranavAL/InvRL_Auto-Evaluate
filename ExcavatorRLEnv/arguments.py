@@ -18,7 +18,7 @@ def get_args():
     parser.add_argument('--gamma', type=float, default=0.99, metavar='G', help='Discount Factor')
 
     parser.add_argument('--seed', type=int, metavar='N', default=0, help='random seed (default: 0)')
-    parser.add_argument('--save-dir', type=str, default='saved_models/', help='the path to save the models')
+    parser.add_argument('--save-dir', type=str, default='saved_models', help='the path to save the models')
     parser.add_argument('--run_id', type=str, default='train', help="name of the run")
     parser.add_argument('--test_id', type=str, required=True, help="Experiment ID")
 
