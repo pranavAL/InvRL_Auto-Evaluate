@@ -7,7 +7,6 @@ import warnings
 warnings.filterwarnings('ignore')
 
 import math
-import time
 import wandb
 import torch
 import numpy as np
@@ -16,7 +15,6 @@ from agent import Agent
 import torch.optim as optim
 from environment import env
 from arguments import get_args
-import matplotlib.pyplot as plt
 import torch.nn.functional as F
 
 args = get_args()
@@ -32,21 +30,21 @@ if __name__ == "__main__":
     i_ep = 0
     agent.save_weights()
 
-    while True:
-        env.render()
+    while i_ep < 500:
+        #env.render()
         if 'saved_buffer.pkl' not in os.listdir():
             print(f"Collecting Episode: {i_ep}")
             agent = Agent(args)
-            time.sleep(5)
             agent.load_weights()
             state, _ = env.reset()
             mean_reward = []
+            mean_penalty = []
 
             for t in range(int(args.steps_per_episode)):
                 action = agent.act(state, is_training)
-                state_, reward, done, _ = env.step(list(action))
+                state_, reward, penalty, done, _ = env.step(list(action))
                 mean_reward.append(reward)
-                wandb.log({"Reward per step":reward})
+                mean_penalty.append(penalty)
 
                 agent.save_eps(state, reward, action, done, state_)
                 state = state_
@@ -55,6 +53,7 @@ if __name__ == "__main__":
                     break
 
             agent.memory.saveBuffer()
+            wandb.log({'Avg. Penalty per Episode':npmean(mean_penalty)})
             wandb.log({'Avg. Reward per Episode':np.mean(mean_reward)})
             wandb.log({'Exercise Number of goals met':env.num_goal})
             wandb.log({'Collisions with environment':env.coll_env})
