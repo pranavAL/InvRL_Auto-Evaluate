@@ -24,14 +24,14 @@ if __name__ == "__main__":
     is_training = args.is_training
 
     env = env(args)
-    wandb.init(name=args.test_id, config=args)
+    wandb.init(name=f"{args.test_id}_{args.ppo_epochs}", config=args)
 
     agent = Agent(args)
 
     i_ep = 0
     agent.save_weights()
 
-    while i_ep < args.ppo_episodes:
+    while i_ep < args.ppo_episodes-1:
         env.render(active=False)
         if 'saved_buffer.pkl' not in os.listdir():
             print(f"Collecting Episode: {i_ep}")
@@ -55,7 +55,7 @@ if __name__ == "__main__":
                 elif args.test_id == "Dynamic":
                     agent.save_eps(state, penalty, action, done, state_)
                 else:
-                    print("Error: Please choose a reward type: Dynamic_Dense or Dense or Dynamic")    
+                    print("Error: Please choose a reward type: Dynamic_Dense or Dense or Dynamic")
                 state = state_
 
                 if done:

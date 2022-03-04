@@ -154,10 +154,11 @@ class Agent:
 
 if __name__ == "__main__":
     args = get_args()
-    wandb.init(name=args.test_id, config=args)
+    wandb.init(name=f"{args.test_id}_{args.ppo_epochs}", config=args)
     agent = Agent(args)
     wandb.watch(agent.policy, log_freq=100)
     i_ep = 0
+    reward_type =
 
     while i_ep < args.ppo_episodes:
         if 'saved_buffer.pkl' in os.listdir():
