@@ -31,7 +31,7 @@ if __name__ == "__main__":
     agent.save_weights()
 
     while i_ep < 500:
-        #env.render()
+        env.render(active=False)
         if 'saved_buffer.pkl' not in os.listdir():
             print(f"Collecting Episode: {i_ep}")
             agent = Agent(args)
