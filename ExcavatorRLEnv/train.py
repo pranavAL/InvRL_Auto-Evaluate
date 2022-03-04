@@ -53,7 +53,7 @@ if __name__ == "__main__":
                     break
 
             agent.memory.saveBuffer()
-            wandb.log({'Avg. Penalty per Episode':npmean(mean_penalty)})
+            wandb.log({'Avg. Penalty per Episode':np.mean(mean_penalty)})
             wandb.log({'Avg. Reward per Episode':np.mean(mean_reward)})
             wandb.log({'Exercise Number of goals met':env.num_goal})
             wandb.log({'Collisions with environment':env.coll_env})
