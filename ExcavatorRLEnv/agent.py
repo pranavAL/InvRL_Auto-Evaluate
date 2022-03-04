@@ -154,12 +154,12 @@ class Agent:
 
 if __name__ == "__main__":
     args = get_args()
-    wandb.init(name="Excavator Learning Policy", config=args)
+    wandb.init(name=args.test_id, config=args)
     agent = Agent(args)
     wandb.watch(agent.policy, log_freq=100)
     i_ep = 0
 
-    while True:
+    while i_ep < args.ppo_episodes:
         if 'saved_buffer.pkl' in os.listdir():
             time.sleep(5)
             print(f"Updating after Episode: {i_ep}")
