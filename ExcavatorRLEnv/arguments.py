@@ -39,7 +39,7 @@ def get_args():
     args = parser.parse_args()
     args.is_training = bool(args.is_training)
 
-    args.save_dir = os.path.join(args.save_dir, 'train', f"{args.test_id}_{args.max_epochs}")
+    args.save_dir = os.path.join(args.save_dir, 'train', f"{args.test_id}_{args.ppo_episodes}")
     os.makedirs(args.save_dir, exist_ok=True)
 
     if 'saved_buffer.pkl' in os.listdir():

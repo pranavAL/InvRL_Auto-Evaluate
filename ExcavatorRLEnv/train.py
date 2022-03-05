@@ -24,7 +24,7 @@ if __name__ == "__main__":
     is_training = args.is_training
 
     env = env(args)
-    wandb.init(name=f"{args.test_id}_{args.ppo_epochs}", config=args)
+    wandb.init(name=f"{args.test_id}_{args.ppo_episodes}", config=args)
 
     agent = Agent(args)
 
