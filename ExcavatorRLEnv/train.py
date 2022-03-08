@@ -34,10 +34,18 @@ if __name__ == "__main__":
     while i_ep < args.ppo_episodes-1:
         env.render(active=False)
         if 'saved_buffer.pkl' not in os.listdir():
+            not_ready = True
             print(f"Collecting Episode: {i_ep}")
             agent = Agent(args)
-            time.sleep(5)
-            agent.load_weights()
+
+            while not_ready:
+                try:
+                    agent.load_weights()
+                except Exception as e:
+                    not_ready = True
+                else:
+                    not_ready = False
+
             state, _ = env.reset()
             mean_reward = []
             mean_penalty = []

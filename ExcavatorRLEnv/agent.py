@@ -161,9 +161,17 @@ if __name__ == "__main__":
 
     while i_ep < args.ppo_episodes:
         if 'saved_buffer.pkl' in os.listdir():
-            time.sleep(5)
+            not_ready = True
             print(f"Updating after Episode: {i_ep}")
-            agent.memory.loadBuffer()
+
+            while not_ready:
+                try:
+                    agent.memory.loadBuffer()
+                except Exception as e:
+                    not_ready = True
+                else:
+                    not_ready = False
+
             agent.load_weights()
             agent.update_ppo()
             agent.save_weights()
