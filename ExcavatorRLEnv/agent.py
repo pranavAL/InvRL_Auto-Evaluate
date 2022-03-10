@@ -167,12 +167,12 @@ if __name__ == "__main__":
             while not_ready:
                 try:
                     agent.memory.loadBuffer()
+                    agent.load_weights()
                 except Exception as e:
                     not_ready = True
                 else:
                     not_ready = False
 
-            agent.load_weights()
             agent.update_ppo()
             agent.save_weights()
             i_ep += 1

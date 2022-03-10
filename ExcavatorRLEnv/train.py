@@ -57,7 +57,7 @@ if __name__ == "__main__":
                 mean_penalty.append(penalty)
 
                 if args.test_id == "Dynamic_Dense":
-                    agent.save_eps(state, reward+penalty, action, done, state_)
+                    agent.save_eps(state, reward*penalty, action, done, state_)
                 elif args.test_id == "Dense":
                     agent.save_eps(state, reward, action, done, state_)
                 elif args.test_id == "Dynamic":
