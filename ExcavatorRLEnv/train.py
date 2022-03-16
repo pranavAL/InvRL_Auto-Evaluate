@@ -27,8 +27,11 @@ if __name__ == "__main__":
     wandb.init(name=f"{args.test_id}_{args.ppo_episodes}", config=args)
 
     agent = Agent(args)
+    agent.lets_init_weights()
 
     i_ep = 0
+    complexity = 0
+    thres_dist = 1.0
     agent.save_weights()
 
     while i_ep < args.ppo_episodes-1:
@@ -46,7 +49,7 @@ if __name__ == "__main__":
                 else:
                     not_ready = False
 
-            state, _ = env.reset()
+            state, _ = env.reset(complexity)
             mean_reward = []
             mean_penalty = []
 
@@ -69,6 +72,10 @@ if __name__ == "__main__":
                 if done:
                     break
 
+            if env.goal_distance < thres_dist:
+                complexity += 1
+
+            print(f"Goal: {env.goals.index(env.goal)+2} --- Final distance: {env.goal_distance}")
             agent.memory.saveBuffer()
             wandb.log({'Avg. Penalty per Episode':np.mean(mean_penalty)})
             wandb.log({'Avg. Reward per Episode':np.mean(mean_reward)})

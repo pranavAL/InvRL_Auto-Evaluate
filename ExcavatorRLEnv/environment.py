@@ -72,7 +72,7 @@ class env():
         penalty = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
         return self.get_numpy(penalty)
 
-    def reset(self):
+    def reset(self, complexity):
         # Initialize Reward and Step Count
         self.current_step = 0
         self.reward = 0
@@ -115,9 +115,14 @@ class env():
 
         self.ControlInterface.getInputContainer()['Control | Engine Start Switch'].value = True
         self.get_goals()
+        self.goals = [(self.goal2, 0.15), (self.goal3, 0.3), (self.goal4, 0.45),
+                       (self.goal5, 0.6) , (self.goal6, 0.75), (self.goal7, 0.9) ,
+                       (self.goal8, 1.0)]
+        self.goal, self.reward_const = self.goals[complexity]
 
         while len(self.rewfeatures) < self.args.seq_len:
             state, reward, penalty = self._get_obs()
+        self.max_dist = self.goal_distance
 
         return state, reward
 
@@ -157,11 +162,11 @@ class env():
     def _get_obs(self):
         reward = 0
         penalty = 0
-        swingpos = self.ControlInterface.getOutputContainer()['State | Actuator Swing Position'].value
-        BoomLinPos = self.ControlInterface.getOutputContainer()['Actuator Boom Position'].value
-        BuckLinPos = self.ControlInterface.getOutputContainer()['Actuator Bucket Position'].value
-        StickLinPos = self.ControlInterface.getOutputContainer()['Actuator Arm Position'].value
-        states = np.array([swingpos, *BoomLinPos, *BuckLinPos, *StickLinPos, *self.goal2])
+        self.swingpos = self.ControlInterface.getOutputContainer()['State | Actuator Swing Position'].value
+        self.BoomLinPos = self.ControlInterface.getOutputContainer()['Actuator Boom Position'].value
+        self.BuckLinPos = self.ControlInterface.getOutputContainer()['Actuator Bucket Position'].value
+        self.StickLinPos = self.ControlInterface.getOutputContainer()['Actuator Arm Position'].value
+        states = np.array([self.swingpos, *self.BoomLinPos, *self.BuckLinPos, *self.StickLinPos])
         states = (states - np.mean(states))/(np.std(states))
 
         BuckAng = self.MetricsInterface.getOutputContainer()['Bucket Angle'].value
@@ -184,7 +189,8 @@ class env():
             trainfeatures = np.array(self.rewfeatures)
             penalty = self.get_penalty(torch.tensor(trainfeatures[-self.args.seq_len:,:]).float(), torch.tensor(trainfeatures[-1,:]).float())
 
-        reward =  1 - (dist(self.goal2,BuckLinPos))/10.0
+        self.goal_distance = dist(self.goal,self.BuckLinPos)
+        reward =  (1 - (self.goal_distance)/self.max_dist) * self.reward_const
 
         self.get_heuristics()
 
