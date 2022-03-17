@@ -24,16 +24,6 @@ class PPO(nn.Module):
                                     nn.Linear(self.l1_nodes, self.l1_nodes),
                                     nn.ReLU(),
                                     nn.Linear(self.l1_nodes, 1)).float().to(args.device)
-    def lets_init_weights(self):
-        self.actor_layer.apply(self.init_weights)
-        self.critic_layer.apply(self.init_weights)
-
-    def init_weights(self, m):
-        for name, param in m.named_parameters():
-            if 'bias' in name:
-               nn.init.constant_(param, 0.01)
-            elif 'weight' in name:
-                nn.init.kaiming_uniform_(param, mode = 'fan_in', nonlinearity = 'relu')
 
     def forward(self, state):
         return self.actor_layer(state), self.critic_layer(state)

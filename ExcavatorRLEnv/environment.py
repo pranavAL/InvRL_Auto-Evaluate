@@ -114,15 +114,16 @@ class env():
             self.application.update()
 
         self.ControlInterface.getInputContainer()['Control | Engine Start Switch'].value = True
+        self.BuckLinPos = self.ControlInterface.getOutputContainer()['Actuator Bucket Position'].value
         self.get_goals()
         self.goals = [(self.goal2, 0.15), (self.goal3, 0.3), (self.goal4, 0.45),
                        (self.goal5, 0.6) , (self.goal6, 0.75), (self.goal7, 0.9) ,
                        (self.goal8, 1.0)]
         self.goal, self.reward_const = self.goals[complexity]
+        self.max_dist = dist(self.goal,self.BuckLinPos)
 
         while len(self.rewfeatures) < self.args.seq_len:
             state, reward, penalty = self._get_obs()
-        self.max_dist = self.goal_distance
 
         return state, reward
 
@@ -150,7 +151,7 @@ class env():
         obs, reward, penalty = self._get_obs()
 
         # Done flag
-        if self.current_step >= self.args.steps_per_episode:
+        if self.current_step >= self.args.steps_per_episode or self.goal_distance > self.max_dist + 5.0 or self.goal_distance < 1.0:
             done = True
         else:
             done = False

@@ -27,7 +27,6 @@ if __name__ == "__main__":
     wandb.init(name=f"{args.test_id}_{args.ppo_episodes}", config=args)
 
     agent = Agent(args)
-    agent.lets_init_weights()
 
     i_ep = 0
     complexity = 0
@@ -52,6 +51,7 @@ if __name__ == "__main__":
             state, _ = env.reset(complexity)
             mean_reward = []
             mean_penalty = []
+            total_reward = []
 
             for t in range(int(args.steps_per_episode)):
                 action = agent.act(state, is_training)
@@ -61,10 +61,13 @@ if __name__ == "__main__":
 
                 if args.test_id == "Dynamic_Dense":
                     agent.save_eps(state, reward*penalty, action, done, state_)
+                    total_reward.append(reward*penalty)
                 elif args.test_id == "Dense":
                     agent.save_eps(state, reward, action, done, state_)
+                    total_reward.append(reward)
                 elif args.test_id == "Dynamic":
                     agent.save_eps(state, penalty, action, done, state_)
+                    total_reward.append(penalty)
                 else:
                     print("Error: Please choose a reward type: Dynamic_Dense or Dense or Dynamic")
                 state = state_
@@ -75,10 +78,12 @@ if __name__ == "__main__":
             if env.goal_distance < thres_dist:
                 complexity += 1
 
-            print(f"Goal: {env.goals.index(env.goal)+2} --- Final distance: {env.goal_distance}")
+            print(f"Complexity: {complexity} --- Total distance: {env.max_dist}")
+            print(f"Distance Left: {env.goal_distance}")
             agent.memory.saveBuffer()
             wandb.log({'Avg. Penalty per Episode':np.mean(mean_penalty)})
-            wandb.log({'Avg. Reward per Episode':np.mean(mean_reward)})
+            wandb.log({'Avg. Goal Reward per Episode':np.mean(mean_reward)})
+            wandb.log({'Avg. Total Reward per Episode':np.mean(total_reward)})
             wandb.log({'Exercise Number of goals met':env.num_goal})
             wandb.log({'Collisions with environment':env.coll_env})
             wandb.log({'Number of times machine was left idling':env.num_idle})
