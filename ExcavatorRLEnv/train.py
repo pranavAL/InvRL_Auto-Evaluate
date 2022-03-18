@@ -79,6 +79,7 @@ if __name__ == "__main__":
             if env.initial_complexity > env.final_complexity:
                 complexity += 1
                 args.steps_per_episode += 50
+                thres_dist = max(thres_dist - 1, 1.0)
 
             print(f"Complexity: {complexity} --- Total distance: {env.max_dist}")
             print(f"Distance Left: {env.goal_distance}")
