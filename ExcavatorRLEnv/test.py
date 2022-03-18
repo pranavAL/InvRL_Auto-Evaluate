@@ -33,7 +33,8 @@ if __name__ == "__main__":
     print(f"Test Started")
     agent = Agent(args)
     agent.load_weights()
-    state, _ = env.reset()
+    complexity = 0
+    state, _ = env.reset(complexity)
 
     for t in range(int(args.steps_per_episode)):
         action = agent.act(state, is_training)

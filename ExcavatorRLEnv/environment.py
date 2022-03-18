@@ -10,6 +10,7 @@ import torch
 import os
 from train_LSTM import LSTMPredictor
 from math import dist
+from scipy.interpolate import interp1d
 
 SUB_STEPS = 5
 
@@ -72,11 +73,12 @@ class env():
         penalty = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
         return self.get_numpy(penalty)
 
-    def reset(self, complexity):
+    def reset(self, complexity, thres_dist):
         # Initialize Reward and Step Count
         self.current_step = 0
         self.reward = 0
         self.rewfeatures = []
+        self.thres_dist = thres_dist
 
         # The first time we load the scene
         if self.vxscene is None:
@@ -114,13 +116,11 @@ class env():
             self.application.update()
 
         self.ControlInterface.getInputContainer()['Control | Engine Start Switch'].value = True
-        self.BuckLinPos = self.ControlInterface.getOutputContainer()['Actuator Bucket Position'].value
         self.get_goals()
-        self.goals = [(self.goal2, 0.15), (self.goal3, 0.3), (self.goal4, 0.45),
-                       (self.goal5, 0.6) , (self.goal6, 0.75), (self.goal7, 0.9) ,
-                       (self.goal8, 1.0)]
-        self.goal, self.reward_const = self.goals[complexity]
-        self.max_dist = dist(self.goal,self.BuckLinPos)
+
+        self.final_complexity = complexity
+        self.initial_complexity = 0
+        self.last_rw_const = 0
 
         while len(self.rewfeatures) < self.args.seq_len:
             state, reward, penalty = self._get_obs()
@@ -150,8 +150,14 @@ class env():
         # Observations
         obs, reward, penalty = self._get_obs()
 
+        if self.goal_distance < self.thres_dist:
+            self.last_rw_const = self.reward_const
+            self.last_goal = self.goal
+            self.initial_complexity += 1
+            print("New Checkpoint")
+
         # Done flag
-        if self.current_step >= self.args.steps_per_episode or self.goal_distance > self.max_dist + 5.0 or self.goal_distance < 1.0:
+        if self.current_step >= self.args.steps_per_episode or self.initial_complexity > self.final_complexity:
             done = True
         else:
             done = False
@@ -163,10 +169,16 @@ class env():
     def _get_obs(self):
         reward = 0
         penalty = 0
+
         self.swingpos = self.ControlInterface.getOutputContainer()['State | Actuator Swing Position'].value
         self.BoomLinPos = self.ControlInterface.getOutputContainer()['Actuator Boom Position'].value
         self.BuckLinPos = self.ControlInterface.getOutputContainer()['Actuator Bucket Position'].value
         self.StickLinPos = self.ControlInterface.getOutputContainer()['Actuator Arm Position'].value
+
+        self.goal, self.reward_const = self.goals[self.initial_complexity]
+        self.max_dist = dist(self.goal,self.last_goal) + self.thres_dist
+        self.rw_fnc = interp1d([0,1],[self.last_rw_const, self.reward_const])
+
         states = np.array([self.swingpos, *self.BoomLinPos, *self.BuckLinPos, *self.StickLinPos])
         states = (states - np.mean(states))/(np.std(states))
 
@@ -191,7 +203,8 @@ class env():
             penalty = self.get_penalty(torch.tensor(trainfeatures[-self.args.seq_len:,:]).float(), torch.tensor(trainfeatures[-1,:]).float())
 
         self.goal_distance = dist(self.goal,self.BuckLinPos)
-        reward =  (1 - (self.goal_distance)/self.max_dist) * self.reward_const
+        reward =  (1 - self.goal_distance/self.max_dist)
+        reward = float(self.rw_fnc(reward))
 
         self.get_heuristics()
 
@@ -243,3 +256,9 @@ class env():
         self.goal6 = self.MetricsInterface.getOutputContainer()['Path6 Easy Transform'].value
         self.goal7 = self.MetricsInterface.getOutputContainer()['Path7 Easy Transform'].value
         self.goal8 = self.MetricsInterface.getOutputContainer()['Path8 Easy Transform'].value
+
+        self.goals = [(self.goal2, 0.15), (self.goal3, 0.3), (self.goal4, 0.45),
+                       (self.goal5, 0.6) , (self.goal6, 0.75), (self.goal7, 0.9) ,
+                       (self.goal8, 1.0)]
+
+        self.last_goal = self.ControlInterface.getOutputContainer()['Actuator Bucket Position'].value

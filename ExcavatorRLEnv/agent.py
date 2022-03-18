@@ -126,6 +126,8 @@ class Agent:
         wandb.log({'Critic_Loss': np.mean(self.meta_data['Critic_Loss'])})
         wandb.log({'KL': np.mean(self.meta_data['KL'])})
         wandb.log({'Policy_Loss': np.mean(self.meta_data['Policy_Loss'])})
+        wandb.log({'Actor Learning Rate': self.policy_optimizer.param_groups[0]['lr']})
+        wandb.log({'Critic Learning Rate': self.policy_optimizer.param_groups[1]['lr']})
 
     def generalized_advantage_estimation(self, values, rewards, next_value, done):
         gae = 0

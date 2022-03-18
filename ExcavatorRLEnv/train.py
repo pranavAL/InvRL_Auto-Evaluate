@@ -30,10 +30,10 @@ if __name__ == "__main__":
 
     i_ep = 0
     complexity = 0
-    thres_dist = 1.0
+    thres_dist = 2.0
     agent.save_weights()
 
-    while i_ep < args.ppo_episodes-1:
+    while True:
         env.render(active=False)
         if 'saved_buffer.pkl' not in os.listdir():
             not_ready = True
@@ -48,7 +48,7 @@ if __name__ == "__main__":
                 else:
                     not_ready = False
 
-            state, _ = env.reset(complexity)
+            state, _ = env.reset(complexity, thres_dist)
             mean_reward = []
             mean_penalty = []
             total_reward = []
@@ -56,6 +56,7 @@ if __name__ == "__main__":
             for t in range(int(args.steps_per_episode)):
                 action = agent.act(state, is_training)
                 state_, reward, penalty, done, _ = env.step(list(action))
+
                 mean_reward.append(reward)
                 mean_penalty.append(penalty)
 
@@ -75,15 +76,19 @@ if __name__ == "__main__":
                 if done:
                     break
 
-            if env.goal_distance < thres_dist:
+            if env.initial_complexity > env.final_complexity:
                 complexity += 1
+                args.steps_per_episode += 50
 
             print(f"Complexity: {complexity} --- Total distance: {env.max_dist}")
             print(f"Distance Left: {env.goal_distance}")
+
             agent.memory.saveBuffer()
+
             wandb.log({'Avg. Penalty per Episode':np.mean(mean_penalty)})
             wandb.log({'Avg. Goal Reward per Episode':np.mean(mean_reward)})
             wandb.log({'Avg. Total Reward per Episode':np.mean(total_reward)})
+            wandb.log({'Complexity':complexity})
             wandb.log({'Exercise Number of goals met':env.num_goal})
             wandb.log({'Collisions with environment':env.coll_env})
             wandb.log({'Number of times machine was left idling':env.num_idle})
