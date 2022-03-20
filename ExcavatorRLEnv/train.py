@@ -28,80 +28,81 @@ if __name__ == "__main__":
 
     agent = Agent(args)
 
-    i_ep = 0
-    complexity = 0
-    thres_dist = 2.0
+    mean_reward = []
+    mean_penalty = []
+    total_reward = []
+
+    step_count = 0
     agent.save_weights()
 
     while True:
         env.render(active=False)
-        if 'saved_buffer.pkl' not in os.listdir():
-            not_ready = True
-            print(f"Collecting Episode: {i_ep}")
-            agent = Agent(args)
+        state, _ = env.reset()
+        print("New Episode Started")
+        done = False
 
-            while not_ready:
-                try:
-                    agent.load_weights()
-                except Exception as e:
-                    not_ready = True
-                else:
-                    not_ready = False
+        while not done:
+            action = agent.act(state, is_training)
+            state_, reward, penalty, done, _ = env.step(list(action))
 
-            state, _ = env.reset(complexity, thres_dist)
-            mean_reward = []
-            mean_penalty = []
-            total_reward = []
+            mean_reward.append(reward)
+            mean_penalty.append(penalty)
 
-            for t in range(int(args.steps_per_episode)):
-                action = agent.act(state, is_training)
-                state_, reward, penalty, done, _ = env.step(list(action))
+            if args.test_id == "Dynamic_Dense":
+                agent.save_eps(state, reward*penalty, action, done, state_)
+                total_reward.append(reward*penalty)
+            elif args.test_id == "Dense":
+                agent.save_eps(state, reward, action, done, state_)
+                total_reward.append(reward)
+            elif args.test_id == "Dynamic":
+                agent.save_eps(state, penalty, action, done, state_)
+                total_reward.append(penalty)
+            else:
+                print("Error: Please choose a reward type: Dynamic_Dense or Dense or Dynamic")
 
-                mean_reward.append(reward)
-                mean_penalty.append(penalty)
+            state = state_
 
-                if args.test_id == "Dynamic_Dense":
-                    agent.save_eps(state, reward*penalty, action, done, state_)
-                    total_reward.append(reward*penalty)
-                elif args.test_id == "Dense":
-                    agent.save_eps(state, reward, action, done, state_)
-                    total_reward.append(reward)
-                elif args.test_id == "Dynamic":
-                    agent.save_eps(state, penalty, action, done, state_)
-                    total_reward.append(penalty)
-                else:
-                    print("Error: Please choose a reward type: Dynamic_Dense or Dense or Dynamic")
-                state = state_
+            step_count += 1
 
-                if done:
-                    break
+            if  step_count > 300 or done:
+                agent.memory.saveBuffer()
 
-            if env.initial_complexity > env.final_complexity:
-                complexity += 1
-                args.steps_per_episode += 50
-                thres_dist = max(thres_dist - 1, 1.0)
+                print("Updating policy")
+                print(f"Steps: {step_count}   Complexity: {env.initial_complexity}  Distance Left: {env.goal_distance}")
 
-            print(f"Complexity: {complexity} --- Total distance: {env.max_dist}")
-            print(f"Distance Left: {env.goal_distance}")
+                wandb.log({'Avg. Penalty per Episode':np.mean(mean_penalty)})
+                wandb.log({'Avg. Goal Reward per Episode':np.mean(mean_reward)})
+                wandb.log({'Avg. Total Reward per 1000 steps':np.mean(total_reward[-1000:])})
+                wandb.log({'Complexity':env.initial_complexity})
+                wandb.log({'Exercise Number of goals met':env.num_goal})
+                wandb.log({'Collisions with environment':env.coll_env})
+                wandb.log({'Number of times machine was left idling':env.num_idle})
+                wandb.log({'Number of times user had to restart an arc':env.arc_restart})
+                wandb.log({'Number of tennis balls knocked over by operator':env.ball_knock})
+                wandb.log({'Number of poles touched':env.pole_touch})
+                wandb.log({'Number of poles that fell over':env.pole_fell})
+                wandb.log({'Number of barrels touches':env.barr_touch})
+                wandb.log({'Number of barrels knocked over':env.barr_knock})
+                wandb.log({'Number of equipment collisions':env.equip_coll})
+                wandb.log({'Exercise Number of goals met':env.num_goal})
+                wandb.log({'Exercise Time':env.ex_time})
 
-            agent.memory.saveBuffer()
+                mean_reward = []
+                mean_penalty = []
+                step_count = 0
 
-            wandb.log({'Avg. Penalty per Episode':np.mean(mean_penalty)})
-            wandb.log({'Avg. Goal Reward per Episode':np.mean(mean_reward)})
-            wandb.log({'Avg. Total Reward per Episode':np.mean(total_reward)})
-            wandb.log({'Complexity':complexity})
-            wandb.log({'Exercise Number of goals met':env.num_goal})
-            wandb.log({'Collisions with environment':env.coll_env})
-            wandb.log({'Number of times machine was left idling':env.num_idle})
-            wandb.log({'Number of times user had to restart an arc':env.arc_restart})
-            wandb.log({'Number of tennis balls knocked over by operator':env.ball_knock})
-            wandb.log({'Number of poles touched':env.pole_touch})
-            wandb.log({'Number of poles that fell over':env.pole_fell})
-            wandb.log({'Number of barrels touches':env.barr_touch})
-            wandb.log({'Number of barrels knocked over':env.barr_knock})
-            wandb.log({'Number of equipment collisions':env.equip_coll})
-            wandb.log({'Exercise Number of goals met':env.num_goal})
-            wandb.log({'Exercise Time':env.ex_time})
+                while 'saved_buffer.pkl' in os.listdir():
+                    continue
 
-            i_ep += 1
+                not_ready = True
+                agent = Agent(args)
+
+                while not_ready:
+                    try:
+                        agent.load_weights()
+                    except Exception as e:
+                        not_ready = True
+                    else:
+                        not_ready = False
+
     del env

@@ -19,7 +19,7 @@ class Agent:
         self.lr_actor = args.lr_act
         self.lr_critic = args.lr_crit
         self.is_training_mode = True
-        self.state_dim = 10
+        self.state_dim = 13
         self.action_dim = 4
         self.action_std = 0.6
         self.gamma = args.gamma
@@ -115,7 +115,7 @@ class Agent:
 
             loss.mean().backward()
             self.policy_optimizer.step()
-            self.scheduler.step()
+            #self.scheduler.step()
 
         self.memory.deleteBuffer()
         self.policy_old.load_state_dict(self.policy.state_dict())
@@ -162,12 +162,11 @@ if __name__ == "__main__":
     wandb.init(name=f"{args.test_id}_{args.ppo_episodes}", config=args)
     agent = Agent(args)
     wandb.watch(agent.policy, log_freq=100)
-    i_ep = 0
 
-    while i_ep < args.ppo_episodes:
+    while True:
         if 'saved_buffer.pkl' in os.listdir():
             not_ready = True
-            print(f"Updating after Episode: {i_ep}")
+            print(f"Updating Episode")
 
             while not_ready:
                 try:
@@ -180,4 +179,3 @@ if __name__ == "__main__":
 
             agent.update_ppo()
             agent.save_weights()
-            i_ep += 1

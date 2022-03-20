@@ -10,7 +10,6 @@ import torch
 import os
 from train_LSTM import LSTMPredictor
 from math import dist
-from scipy.interpolate import interp1d
 
 SUB_STEPS = 5
 
@@ -73,12 +72,13 @@ class env():
         penalty = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
         return self.get_numpy(penalty)
 
-    def reset(self, complexity, thres_dist):
+    def reset(self):
         # Initialize Reward and Step Count
-        self.current_step = 0
         self.reward = 0
         self.rewfeatures = []
-        self.thres_dist = thres_dist
+        self.thres_dist = 1.0
+        self.distance_covered = []
+        self.current_steps = 0
 
         # The first time we load the scene
         if self.vxscene is None:
@@ -118,9 +118,8 @@ class env():
         self.ControlInterface.getInputContainer()['Control | Engine Start Switch'].value = True
         self.get_goals()
 
-        self.final_complexity = complexity
         self.initial_complexity = 0
-        self.last_rw_const = 0
+        self.last_position = self.ControlInterface.getOutputContainer()['Actuator Bucket Position'].value
 
         while len(self.rewfeatures) < self.args.seq_len:
             state, reward, penalty = self._get_obs()
@@ -151,18 +150,17 @@ class env():
         obs, reward, penalty = self._get_obs()
 
         if self.goal_distance < self.thres_dist:
-            self.last_rw_const = self.reward_const
-            self.last_goal = self.goal
             self.initial_complexity += 1
             print("New Checkpoint")
 
         # Done flag
-        if self.current_step >= self.args.steps_per_episode or self.initial_complexity > self.final_complexity:
+        if self.goal_distance > 10.0 or (self.current_steps > 1000 and sum(self.distance_covered[-1000:]) < 0.5):
+            print("Episode over")
             done = True
         else:
             done = False
 
-        self.current_step += 1
+        self.current_steps += 1
 
         return obs, reward, penalty, done, {}
 
@@ -175,11 +173,9 @@ class env():
         self.BuckLinPos = self.ControlInterface.getOutputContainer()['Actuator Bucket Position'].value
         self.StickLinPos = self.ControlInterface.getOutputContainer()['Actuator Arm Position'].value
 
-        self.goal, self.reward_const = self.goals[self.initial_complexity]
-        self.max_dist = dist(self.goal,self.last_goal) + self.thres_dist + 2.0
-        self.rw_fnc = interp1d([0,1],[self.last_rw_const, self.reward_const])
+        self.goal = self.goals[self.initial_complexity]
 
-        states = np.array([self.swingpos, *self.BoomLinPos, *self.BuckLinPos, *self.StickLinPos])
+        states = np.array([self.swingpos, *self.BoomLinPos, *self.BuckLinPos, *self.StickLinPos, *self.goal])
         states = (states - np.mean(states))/(np.std(states))
 
         BuckAng = self.MetricsInterface.getOutputContainer()['Bucket Angle'].value
@@ -203,8 +199,10 @@ class env():
             penalty = self.get_penalty(torch.tensor(trainfeatures[-self.args.seq_len:,:]).float(), torch.tensor(trainfeatures[-1,:]).float())
 
         self.goal_distance = dist(self.goal,self.BuckLinPos)
-        reward =  (1 - self.goal_distance/self.max_dist)
-        reward = float(self.rw_fnc(max(reward,0)))
+        reward =  1 - self.goal_distance/5.0
+
+        self.distance_covered.append(dist(self.last_position,self.BuckLinPos))
+        self.last_position = self.BuckLinPos
 
         self.get_heuristics()
 
@@ -249,14 +247,13 @@ class env():
         self.ex_time = self.MetricsInterface.getOutputContainer()['Exercise Time'].value
 
     def get_goals(self):
+        self.goal2 = self.MetricsInterface.getOutputContainer()['Path2 Easy Transform'].value
         self.goal3 = self.MetricsInterface.getOutputContainer()['Path3 Easy Transform'].value
         self.goal4 = self.MetricsInterface.getOutputContainer()['Path4 Easy Transform'].value
         self.goal5 = self.MetricsInterface.getOutputContainer()['Path5 Easy Transform'].value
         self.goal6 = self.MetricsInterface.getOutputContainer()['Path6 Easy Transform'].value
+        self.goal7 = self.MetricsInterface.getOutputContainer()['Path7 Easy Transform'].value
         self.goal8 = self.MetricsInterface.getOutputContainer()['Path8 Easy Transform'].value
 
-        self.goals = [(self.goal3, 0.2), (self.goal4, 0.4),
-                       (self.goal5, 0.6) , (self.goal6, 0.8),
-                       (self.goal8, 1.0)]
-
-        self.last_goal = self.ControlInterface.getOutputContainer()['Actuator Bucket Position'].value
+        self.goals = [self.goal2, self.goal3, self.goal4, self.goal5,
+                      self.goal6, self.goal7, self.goal8]
