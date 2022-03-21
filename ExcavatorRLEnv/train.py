@@ -28,11 +28,6 @@ if __name__ == "__main__":
 
     agent = Agent(args)
 
-    mean_reward = []
-    mean_penalty = []
-    total_reward = []
-
-    step_count = 0
     agent.save_weights()
 
     while True:
@@ -40,6 +35,10 @@ if __name__ == "__main__":
         state, _ = env.reset()
         print("New Episode Started")
         done = False
+
+        mean_reward = []
+        mean_penalty = []
+        total_reward = []
 
         while not done:
             action = agent.act(state, is_training)
@@ -62,47 +61,40 @@ if __name__ == "__main__":
 
             state = state_
 
-            step_count += 1
+        agent.memory.saveBuffer()
 
-            if  step_count > 300 or done:
-                agent.memory.saveBuffer()
+        print("Updating policy")
+        print(f"Complexity: {env.initial_complexity}  Distance Left: {env.goal_distance}")
 
-                print("Updating policy")
-                print(f"Steps: {step_count}   Complexity: {env.initial_complexity}  Distance Left: {env.goal_distance}")
+        wandb.log({'Avg. Penalty per Episode':np.mean(mean_penalty)})
+        wandb.log({'Avg. Goal Reward per Episode':np.mean(mean_reward)})
+        wandb.log({'Avg. Total Reward per 1000 steps':np.mean(total_reward)})
+        wandb.log({'Complexity':env.initial_complexity})
+        wandb.log({'Exercise Number of goals met':env.num_goal})
+        wandb.log({'Collisions with environment':env.coll_env})
+        wandb.log({'Number of times machine was left idling':env.num_idle})
+        wandb.log({'Number of times user had to restart an arc':env.arc_restart})
+        wandb.log({'Number of tennis balls knocked over by operator':env.ball_knock})
+        wandb.log({'Number of poles touched':env.pole_touch})
+        wandb.log({'Number of poles that fell over':env.pole_fell})
+        wandb.log({'Number of barrels touches':env.barr_touch})
+        wandb.log({'Number of barrels knocked over':env.barr_knock})
+        wandb.log({'Number of equipment collisions':env.equip_coll})
+        wandb.log({'Exercise Number of goals met':env.num_goal})
+        wandb.log({'Exercise Time':env.ex_time})
 
-                wandb.log({'Avg. Penalty per Episode':np.mean(mean_penalty)})
-                wandb.log({'Avg. Goal Reward per Episode':np.mean(mean_reward)})
-                wandb.log({'Avg. Total Reward per 1000 steps':np.mean(total_reward[-1000:])})
-                wandb.log({'Complexity':env.initial_complexity})
-                wandb.log({'Exercise Number of goals met':env.num_goal})
-                wandb.log({'Collisions with environment':env.coll_env})
-                wandb.log({'Number of times machine was left idling':env.num_idle})
-                wandb.log({'Number of times user had to restart an arc':env.arc_restart})
-                wandb.log({'Number of tennis balls knocked over by operator':env.ball_knock})
-                wandb.log({'Number of poles touched':env.pole_touch})
-                wandb.log({'Number of poles that fell over':env.pole_fell})
-                wandb.log({'Number of barrels touches':env.barr_touch})
-                wandb.log({'Number of barrels knocked over':env.barr_knock})
-                wandb.log({'Number of equipment collisions':env.equip_coll})
-                wandb.log({'Exercise Number of goals met':env.num_goal})
-                wandb.log({'Exercise Time':env.ex_time})
+        while 'saved_buffer.pkl' in os.listdir():
+            continue
 
-                mean_reward = []
-                mean_penalty = []
-                step_count = 0
+        not_ready = True
+        agent = Agent(args)
 
-                while 'saved_buffer.pkl' in os.listdir():
-                    continue
-
+        while not_ready:
+            try:
+                agent.load_weights()
+            except Exception as e:
                 not_ready = True
-                agent = Agent(args)
-
-                while not_ready:
-                    try:
-                        agent.load_weights()
-                    except Exception as e:
-                        not_ready = True
-                    else:
-                        not_ready = False
+            else:
+                not_ready = False
 
     del env

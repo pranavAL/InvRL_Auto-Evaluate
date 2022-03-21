@@ -21,7 +21,7 @@ class Agent:
         self.is_training_mode = True
         self.state_dim = 13
         self.action_dim = 4
-        self.action_std = 0.6
+        self.action_std = 0.5
         self.gamma = args.gamma
         self.lam = args.lam
         self.args = args

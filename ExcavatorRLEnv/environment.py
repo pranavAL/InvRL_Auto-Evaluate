@@ -77,7 +77,6 @@ class env():
         self.reward = 0
         self.rewfeatures = []
         self.thres_dist = 1.0
-        self.distance_covered = []
         self.current_steps = 0
 
         # The first time we load the scene
@@ -119,7 +118,6 @@ class env():
         self.get_goals()
 
         self.initial_complexity = 0
-        self.last_position = self.ControlInterface.getOutputContainer()['Actuator Bucket Position'].value
 
         while len(self.rewfeatures) < self.args.seq_len:
             state, reward, penalty = self._get_obs()
@@ -154,7 +152,7 @@ class env():
             print("New Checkpoint")
 
         # Done flag
-        if self.goal_distance > 10.0 or (self.current_steps > 1000 and sum(self.distance_covered[-1000:]) < 0.5):
+        if self.current_steps > self.args.steps_per_episode :
             print("Episode over")
             done = True
         else:
@@ -200,9 +198,6 @@ class env():
 
         self.goal_distance = dist(self.goal,self.BuckLinPos)
         reward =  1 - self.goal_distance/5.0
-
-        self.distance_covered.append(dist(self.last_position,self.BuckLinPos))
-        self.last_position = self.BuckLinPos
 
         self.get_heuristics()
 
