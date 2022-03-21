@@ -68,7 +68,7 @@ if __name__ == "__main__":
 
         wandb.log({'Avg. Penalty per Episode':np.mean(mean_penalty)})
         wandb.log({'Avg. Goal Reward per Episode':np.mean(mean_reward)})
-        wandb.log({'Avg. Total Reward per 1000 steps':np.mean(total_reward)})
+        wandb.log({'Avg. Total Reward':np.mean(total_reward)})
         wandb.log({'Complexity':env.initial_complexity})
         wandb.log({'Exercise Number of goals met':env.num_goal})
         wandb.log({'Collisions with environment':env.coll_env})

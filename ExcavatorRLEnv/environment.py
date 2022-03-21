@@ -152,7 +152,7 @@ class env():
             print("New Checkpoint")
 
         # Done flag
-        if self.current_steps > self.args.steps_per_episode :
+        if self.current_steps > self.args.steps_per_episode or self.goal_distance > 6.0:
             print("Episode over")
             done = True
         else:
