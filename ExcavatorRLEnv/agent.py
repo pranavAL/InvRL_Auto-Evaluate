@@ -21,7 +21,7 @@ class Agent:
         self.is_training_mode = True
         self.state_dim = 13
         self.action_dim = 4
-        self.action_std = 0.5
+        self.action_std = 0.6
         self.gamma = args.gamma
         self.lam = args.lam
         self.args = args
@@ -159,7 +159,12 @@ class Agent:
 
 if __name__ == "__main__":
     args = get_args()
-    wandb.init(name=f"{args.test_id}_{args.ppo_episodes}", config=args)
+
+    if args.wandb_id:
+        wandb.init(id=args.wandb_id, resume="must")
+    else:
+        wandb.init(name=f"{args.test_id}_{args.ppo_episodes}", config=args, resume=True)
+
     agent = Agent(args)
     wandb.watch(agent.policy, log_freq=100)
 

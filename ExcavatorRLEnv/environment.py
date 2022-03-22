@@ -150,9 +150,10 @@ class env():
         if self.goal_distance < self.thres_dist:
             self.initial_complexity += 1
             print("New Checkpoint")
+            self.args.steps_per_episode += 50
 
         # Done flag
-        if self.current_steps > self.args.steps_per_episode or self.goal_distance > 6.0:
+        if self.current_steps > self.args.steps_per_episode:
             print("Episode over")
             done = True
         else:

@@ -9,11 +9,11 @@ def get_args():
 
     parser = argparse.ArgumentParser(description='Train a PPO agent')
 
-    parser.add_argument('--policy_clip', type=float, default=0.2, metavar='G', help='Value to Clip Policy')
-    parser.add_argument('--value_clip', type=float, default=0.2, metavar='G', help='Threshold to Clip Value')
+    parser.add_argument('--policy_clip', type=float, default=0.1, metavar='G', help='Value to Clip Policy')
+    parser.add_argument('--value_clip', type=float, default=0.1, metavar='G', help='Threshold to Clip Value')
     parser.add_argument('--weight_entropy', type=float, default=0.001, metavar='G', help='Importance of Entropy')
     parser.add_argument('--weight_for_value', type=float, default=1.0, metavar='G', help='Importance of Value')
-    parser.add_argument('--ppo_epochs', type=int, default=80, metavar='G', help='Number of epochs for PPO')
+    parser.add_argument('--ppo_epochs', type=int, default=15, metavar='G', help='Number of epochs for PPO')
     parser.add_argument('--ppo_episodes', type=int, default=1000, metavar='G', help='Number of episodes for PPO')
     parser.add_argument('--lr_act', type=float, default=3e-4, metavar='G', help='Learning Rate Actor')
     parser.add_argument('--lr_crit', type=float, default=1e-3, metavar='G', help='Learning Rate Critic')
@@ -24,9 +24,10 @@ def get_args():
     parser.add_argument('--save-dir', type=str, default='saved_models', help='the path to save the models')
     parser.add_argument('--run_id', type=str, default='train', help="name of the run")
     parser.add_argument('--test_id', type=str, required=True, help="Experiment ID")
+    parser.add_argument('--wandb_id', type=str, default=None, help="Wandb ID")
 
     parser.add_argument('--is_training', default=1, type=int, help='1 for training and 0 for testing')
-    parser.add_argument('--steps_per_episode', default=1000, type=int, help='Steps per Episode')
+    parser.add_argument('--steps_per_episode', default=300, type=int, help='Steps per Episode')
 
     parser.add_argument('-sq','--seq_len', type=int, default=32, help="Sequence Length for input to LSTM")
     parser.add_argument('-bs','--batch_size', type=int, default=8, help="Batch Size")
