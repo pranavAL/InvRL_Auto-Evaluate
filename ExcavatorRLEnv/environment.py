@@ -69,7 +69,7 @@ class env():
         data = data.unsqueeze(0).to(self.model.device)
         label = label.view(1,1,-1).to(self.model.device)
         _, mu, logvar = self.model(data, label, is_train=False)
-        penalty = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+        penalty = torch.mean(-0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(),dim=1), dim=0)
         return self.get_numpy(penalty)
 
     def reset(self):
@@ -78,6 +78,7 @@ class env():
         self.rewfeatures = []
         self.thres_dist = 1.0
         self.current_steps = 0
+        self.args.steps_per_episode = 350
 
         # The first time we load the scene
         if self.vxscene is None:

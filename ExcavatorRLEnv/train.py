@@ -24,14 +24,13 @@ if __name__ == "__main__":
     is_training = args.is_training
 
     env = env(args)
+    agent = Agent(args)
 
     if args.wandb_id:
         wandb.init(id=args.wandb_id, resume="must")
+        agent.load_weights()
     else:
         wandb.init(name=f"{args.test_id}_{args.ppo_episodes}", config=args, resume=True)
-        agent.load_weights()
-
-    agent = Agent(args)
 
     agent.save_weights()
 
