@@ -30,9 +30,10 @@ if __name__ == "__main__":
         wandb.init(id=args.wandb_id, resume="must")
         agent.load_weights()
     else:
-        wandb.init(name=f"{args.test_id}_{args.ppo_episodes}", config=args, resume=True)
+        wandb.init(name=f"{args.test_id}_{args.ppo_episodes}", config=args)
 
     agent.save_weights()
+    eps_count = 0
 
     while True:
         env.render(active=False)
@@ -52,8 +53,8 @@ if __name__ == "__main__":
             mean_penalty.append(penalty)
 
             if args.test_id == "Dynamic_Dense":
-                agent.save_eps(state, reward*penalty, action, done, state_)
-                total_reward.append(reward*penalty)
+                agent.save_eps(state, 0.9*reward + 0.01*penalty, action, done, state_)
+                total_reward.append(reward + 0.1*penalty)
             elif args.test_id == "Dense":
                 agent.save_eps(state, reward, action, done, state_)
                 total_reward.append(reward)
@@ -66,9 +67,10 @@ if __name__ == "__main__":
             state = state_
 
         agent.memory.saveBuffer()
+        eps_count += 1
 
         print("Updating policy")
-        print(f"Complexity: {env.initial_complexity}  Distance Left: {env.goal_distance}")
+        print(f" Episode: {eps_count} Complexity: {env.initial_complexity}  Distance Left: {env.goal_distance}")
 
         wandb.log({'Avg. Penalty per Episode':np.mean(mean_penalty)})
         wandb.log({'Avg. Goal Reward per Episode':np.mean(mean_reward)})
