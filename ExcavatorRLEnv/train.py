@@ -71,6 +71,19 @@ if __name__ == "__main__":
             if not total_steps % args.steps_per_episode:
                 print("Updating policy")
                 agent.memory.saveBuffer()
+                while 'saved_buffer.pkl' in os.listdir():
+                    continue
+
+                not_ready = True
+                agent = Agent(args)
+
+                while not_ready:
+                    try:
+                        agent.load_weights()
+                    except Exception as e:
+                        not_ready = True
+                    else:
+                        not_ready = False
 
             if done:
                 break
@@ -93,19 +106,5 @@ if __name__ == "__main__":
         wandb.log({'Number of equipment collisions':env.equip_coll})
         wandb.log({'Exercise Number of goals met':env.num_goal})
         wandb.log({'Exercise Time':env.ex_time})
-
-        while 'saved_buffer.pkl' in os.listdir():
-            continue
-
-        not_ready = True
-        agent = Agent(args)
-
-        while not_ready:
-            try:
-                agent.load_weights()
-            except Exception as e:
-                not_ready = True
-            else:
-                not_ready = False
 
     del env
