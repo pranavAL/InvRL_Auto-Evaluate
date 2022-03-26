@@ -4,8 +4,8 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 class PPO(nn.Module):
-    l1_nodes = 128
-    l2_nodes = 128
+    l1_nodes = 64
+    l2_nodes = 64
 
     def __init__(self, state_dim, action_dim, args):
         super().__init__()

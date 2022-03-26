@@ -78,7 +78,7 @@ class env():
         self.rewfeatures = []
         self.thres_dist = 1.0
         self.current_steps = 0
-        self.args.steps_per_episode = 500
+        self.args.steps_per_episode = 300
 
         # The first time we load the scene
         if self.vxscene is None:
@@ -151,7 +151,7 @@ class env():
         if self.goal_distance < self.thres_dist:
             self.initial_complexity += 1
             print("New Checkpoint")
-            self.args.steps_per_episode = min(self.args.steps_per_episode+50, 1000)
+            self.current_steps = 0
 
         # Done flag
         if self.current_steps > self.args.steps_per_episode:
@@ -215,7 +215,7 @@ class env():
                            self.SwingAngVel, self.BoomAngvel, self.BuckAngvel, self.StickAngvel,
                            self.BoomLinvel, self.BuckLinvel, self.StickLinvel, *RewardVal])
 
-        #states = (states - np.mean(states))/(np.std(states))                   
+        states = (states - np.mean(states))/(np.std(states))
         self.goal_distance = dist(self.goal,self.BuckLinPos)
         reward =  1 - self.goal_distance/5.0
 

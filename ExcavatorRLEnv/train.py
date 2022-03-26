@@ -34,6 +34,7 @@ if __name__ == "__main__":
 
     agent.save_weights()
     eps_count = 0
+    total_steps = 1
 
     while True:
         env.render(active=False)
@@ -53,7 +54,7 @@ if __name__ == "__main__":
             mean_penalty.append(penalty)
 
             if args.test_id == "Dynamic_Dense":
-                agent.save_eps(state, 0.9*reward + 0.01*penalty, action, done, state_)
+                agent.save_eps(state, reward + 0.1*penalty, action, done, state_)
                 total_reward.append(reward + 0.1*penalty)
             elif args.test_id == "Dense":
                 agent.save_eps(state, reward, action, done, state_)
@@ -65,12 +66,16 @@ if __name__ == "__main__":
                 print("Error: Please choose a reward type: Dynamic_Dense or Dense or Dynamic")
 
             state = state_
+            total_steps += 1
 
-        agent.memory.saveBuffer()
-        eps_count += 1
+            if not total_steps % args.steps_per_episode:
+                print("Updating policy")
+                agent.memory.saveBuffer()
 
-        print("Updating policy")
-        print(f" Episode: {eps_count} Complexity: {env.initial_complexity}  Distance Left: {env.goal_distance}")
+            if done:
+                break
+
+        print(f"Complexity: {env.initial_complexity}  Distance Left: {env.goal_distance}")
 
         wandb.log({'Avg. Penalty per Episode':np.mean(mean_penalty)})
         wandb.log({'Avg. Goal Reward per Episode':np.mean(mean_reward)})
