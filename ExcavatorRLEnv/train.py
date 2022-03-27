@@ -34,7 +34,7 @@ if __name__ == "__main__":
 
     agent.save_weights()
     eps_count = 0
-    total_steps = 1
+    total_steps = 0
 
     while True:
         env.render(active=False)
@@ -68,7 +68,7 @@ if __name__ == "__main__":
             state = state_
             total_steps += 1
 
-            if not total_steps % args.steps_per_episode:
+            if total_steps > args.steps_per_episode or done:
                 print("Updating policy")
                 agent.memory.saveBuffer()
                 while 'saved_buffer.pkl' in os.listdir():
@@ -84,6 +84,8 @@ if __name__ == "__main__":
                         not_ready = True
                     else:
                         not_ready = False
+
+                total_steps = 0
 
             if done:
                 break
