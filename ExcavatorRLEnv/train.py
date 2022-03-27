@@ -34,13 +34,13 @@ if __name__ == "__main__":
 
     agent.save_weights()
     eps_count = 0
-    total_steps = 0
 
     while True:
         env.render(active=False)
         state, _ = env.reset()
         print("New Episode Started")
         done = False
+        total_steps = 0
 
         mean_reward = []
         mean_penalty = []
@@ -66,9 +66,8 @@ if __name__ == "__main__":
                 print("Error: Please choose a reward type: Dynamic_Dense or Dense or Dynamic")
 
             state = state_
-            total_steps += 1
 
-            if total_steps > args.steps_per_episode or done:
+            if total_steps > args.steps_per_episode:
                 print("Updating policy")
                 agent.memory.saveBuffer()
                 while 'saved_buffer.pkl' in os.listdir():
@@ -89,6 +88,8 @@ if __name__ == "__main__":
 
             if done:
                 break
+
+            total_steps += 1    
 
         print(f"Complexity: {env.initial_complexity}  Distance Left: {env.goal_distance}")
 
