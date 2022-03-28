@@ -58,6 +58,8 @@ class env():
         self.model.cuda()
         self.model.eval()
 
+        self.initial_complexity = 0
+
     def __del__(self):
         # It is always a good idea to destroy the VxApplication when we are done with it.
         self.application = None
@@ -78,7 +80,6 @@ class env():
         self.rewfeatures = []
         self.thres_dist = 1.0
         self.current_steps = 0
-        self.args.steps_per_episode = 300
 
         # The first time we load the scene
         if self.vxscene is None:
@@ -118,8 +119,6 @@ class env():
         self.ControlInterface.getInputContainer()['Control | Engine Start Switch'].value = True
         self.get_goals()
 
-        self.initial_complexity = 0
-
         while len(self.rewfeatures) < self.args.seq_len:
             state, reward, penalty = self._get_obs()
 
@@ -151,7 +150,7 @@ class env():
         if self.goal_distance < self.thres_dist:
             self.initial_complexity += 1
             print("New Checkpoint")
-            self.current_steps = 0
+            done = True
 
         # Done flag
         if self.current_steps > self.args.steps_per_episode:
@@ -217,7 +216,7 @@ class env():
 
         states = (states - np.mean(states))/(np.std(states))
         self.goal_distance = dist(self.goal,self.BuckLinPos)
-        reward =  1 - self.goal_distance/5.0
+        reward =  max(15 - self.goal_distance, 0)
 
         self.get_heuristics()
 

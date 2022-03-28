@@ -9,8 +9,8 @@ def get_args():
 
     parser = argparse.ArgumentParser(description='Train a PPO agent')
 
-    parser.add_argument('--policy_clip', type=float, default=0.1, metavar='G', help='Value to Clip Policy')
-    parser.add_argument('--value_clip', type=float, default=0.1, metavar='G', help='Threshold to Clip Value')
+    parser.add_argument('--policy_clip', type=float, default=0.2, metavar='G', help='Value to Clip Policy')
+    parser.add_argument('--value_clip', type=float, default=0.2, metavar='G', help='Threshold to Clip Value')
     parser.add_argument('--weight_entropy', type=float, default=0.001, metavar='G', help='Importance of Entropy')
     parser.add_argument('--weight_for_value', type=float, default=1.0, metavar='G', help='Importance of Value')
     parser.add_argument('--ppo_epochs', type=int, default=15, metavar='G', help='Number of epochs for PPO')
@@ -27,7 +27,7 @@ def get_args():
     parser.add_argument('--wandb_id', type=str, default=None, help="Wandb ID")
 
     parser.add_argument('--is_training', default=1, type=int, help='1 for training and 0 for testing')
-    parser.add_argument('--steps_per_episode', default=350, type=int, help='Steps per Episode')
+    parser.add_argument('--steps_per_episode', default=1000, type=int, help='Steps per Episode')
 
     parser.add_argument('-sq','--seq_len', type=int, default=32, help="Sequence Length for input to LSTM")
     parser.add_argument('-bs','--batch_size', type=int, default=8, help="Batch Size")

@@ -40,11 +40,10 @@ if __name__ == "__main__":
         state, _ = env.reset()
         print("New Episode Started")
         done = False
-        total_steps = 0
 
-        mean_reward = []
         mean_penalty = []
         total_reward = []
+        mean_reward = []
 
         while not done:
             action = agent.act(state, is_training)
@@ -54,8 +53,8 @@ if __name__ == "__main__":
             mean_penalty.append(penalty)
 
             if args.test_id == "Dynamic_Dense":
-                agent.save_eps(state, reward + 0.1*penalty, action, done, state_)
-                total_reward.append(reward + 0.1*penalty)
+                agent.save_eps(state, reward*penalty, action, done, state_)
+                total_reward.append(reward*penalty)
             elif args.test_id == "Dense":
                 agent.save_eps(state, reward, action, done, state_)
                 total_reward.append(reward)
@@ -67,35 +66,15 @@ if __name__ == "__main__":
 
             state = state_
 
-            if total_steps > args.steps_per_episode:
-                print("Updating policy")
-                agent.memory.saveBuffer()
-                while 'saved_buffer.pkl' in os.listdir():
-                    continue
-
-                not_ready = True
-                agent = Agent(args)
-
-                while not_ready:
-                    try:
-                        agent.load_weights()
-                    except Exception as e:
-                        not_ready = True
-                    else:
-                        not_ready = False
-
-                total_steps = 0
-
             if done:
                 break
 
-            total_steps += 1    
-
         print(f"Complexity: {env.initial_complexity}  Distance Left: {env.goal_distance}")
+        print("Updating policy")
+        agent.memory.saveBuffer()
 
         wandb.log({'Avg. Penalty per Episode':np.mean(mean_penalty)})
-        wandb.log({'Avg. Goal Reward per Episode':np.mean(mean_reward)})
-        wandb.log({'Avg. Total Reward':np.mean(total_reward)})
+        wandb.log({'Avg. Total Reward':sum(total_reward)})
         wandb.log({'Complexity':env.initial_complexity})
         wandb.log({'Exercise Number of goals met':env.num_goal})
         wandb.log({'Collisions with environment':env.coll_env})
@@ -109,5 +88,20 @@ if __name__ == "__main__":
         wandb.log({'Number of equipment collisions':env.equip_coll})
         wandb.log({'Exercise Number of goals met':env.num_goal})
         wandb.log({'Exercise Time':env.ex_time})
+        wandb.log({'Avg. Goal Reward per Update':np.mean(mean_reward)})
+
+        while 'saved_buffer.pkl' in os.listdir():
+            continue
+
+        not_ready = True
+        agent = Agent(args)
+
+        while not_ready:
+            try:
+                agent.load_weights()
+            except Exception as e:
+                not_ready = True
+            else:
+                not_ready = False
 
     del env
