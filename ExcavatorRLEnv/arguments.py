@@ -27,7 +27,8 @@ def get_args():
     parser.add_argument('--wandb_id', type=str, default=None, help="Wandb ID")
 
     parser.add_argument('--is_training', default=1, type=int, help='1 for training and 0 for testing')
-    parser.add_argument('--steps_per_episode', default=1000, type=int, help='Steps per Episode')
+    parser.add_argument('--steps_per_episode', default=350, type=int, help='Steps per Episode')
+    parser.add_argument('--complexity', required=True, type=int, help='State the required complexity')
 
     parser.add_argument('-sq','--seq_len', type=int, default=32, help="Sequence Length for input to LSTM")
     parser.add_argument('-bs','--batch_size', type=int, default=8, help="Batch Size")

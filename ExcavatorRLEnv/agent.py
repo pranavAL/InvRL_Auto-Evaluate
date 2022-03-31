@@ -19,7 +19,7 @@ class Agent:
         self.lr_actor = args.lr_act
         self.lr_critic = args.lr_crit
         self.is_training_mode = True
-        self.state_dim = 33
+        self.state_dim = 19
         self.action_dim = 4
         self.action_std = 0.6
         self.gamma = args.gamma
@@ -149,12 +149,12 @@ class Agent:
         self.policy_old.lets_init_weights()
 
     def save_weights(self):
-        torch.save(self.policy.state_dict(), os.path.join(self.args.save_dir,'actor_ppo.pth'))
-        torch.save(self.policy_old.state_dict(), os.path.join(self.args.save_dir,'old_actor_ppo.pth'))
+        torch.save(self.policy.state_dict(), os.path.join(self.args.save_dir,f'{self.args.complexity}actor_ppo.pth'))
+        torch.save(self.policy_old.state_dict(), os.path.join(self.args.save_dir,f'{self.args.complexity}old_actor_ppo.pth'))
 
     def load_weights(self):
-        self.policy.load_state_dict(torch.load(os.path.join(self.args.save_dir,'actor_ppo.pth')))
-        self.policy_old.load_state_dict(torch.load(os.path.join(self.args.save_dir,'old_actor_ppo.pth')))
+        self.policy.load_state_dict(torch.load(os.path.join(self.args.save_dir,f'{self.args.complexity}actor_ppo.pth')))
+        self.policy_old.load_state_dict(torch.load(os.path.join(self.args.save_dir,f'{self.args.complexity}old_actor_ppo.pth')))
 
 
 if __name__ == "__main__":

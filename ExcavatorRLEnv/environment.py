@@ -57,8 +57,7 @@ class env():
         self.model.load_state_dict(torch.load(model_path))
         self.model.cuda()
         self.model.eval()
-
-        self.initial_complexity = 0
+        self.is_complete = False
 
     def __del__(self):
         # It is always a good idea to destroy the VxApplication when we are done with it.
@@ -118,6 +117,7 @@ class env():
 
         self.ControlInterface.getInputContainer()['Control | Engine Start Switch'].value = True
         self.get_goals()
+        self.initial_complexity = self.args.complexity
 
         while len(self.rewfeatures) < self.args.seq_len:
             state, reward, penalty = self._get_obs()
@@ -148,12 +148,11 @@ class env():
         obs, reward, penalty = self._get_obs()
 
         if self.goal_distance < self.thres_dist:
-            self.initial_complexity += 1
-            print("New Checkpoint")
-            done = True
+            print(f"Reached Checkpoint: {self.initial_complexity}")
+            self.is_complete = True
 
         # Done flag
-        if self.current_steps > self.args.steps_per_episode:
+        if self.current_steps > self.args.steps_per_episode or self.is_complete:
             print("Episode over")
             done = True
         else:
@@ -209,14 +208,13 @@ class env():
             trainfeatures = np.array(self.rewfeatures)
             z, penalty = self.get_penalty(torch.tensor(trainfeatures[-self.args.seq_len:,:]).float(), torch.tensor(trainfeatures[-1,:]).float())
 
-        states = np.array([*self.SwingLinPos, *self.BoomLinPos, *self.BuckLinPos, *self.StickLinPos, *self.goal,
-                           self.SwingAngPos, self.BoomAngPos, self.BuckAngPos, self.StickAngPos,
+        states = np.array([*self.SwingLinPos, *self.BoomLinPos, *self.BuckLinPos, *self.StickLinPos,
                            self.SwingAngVel, self.BoomAngvel, self.BuckAngvel, self.StickAngvel,
-                           self.BoomLinvel, self.BuckLinvel, self.StickLinvel, *RewardVal])
+                           self.BoomLinvel, self.BuckLinvel, self.StickLinvel])
 
         states = (states - np.mean(states))/(np.std(states))
         self.goal_distance = dist(self.goal,self.BuckLinPos)
-        reward =  max(15 - self.goal_distance, 0)
+        reward =  max(1 - self.goal_distance/10.0, 0)
 
         self.get_heuristics()
 
@@ -261,7 +259,6 @@ class env():
         self.ex_time = self.MetricsInterface.getOutputContainer()['Exercise Time'].value
 
     def get_goals(self):
-        self.goal2 = self.MetricsInterface.getOutputContainer()['Path2 Easy Transform'].value
         self.goal3 = self.MetricsInterface.getOutputContainer()['Path3 Easy Transform'].value
         self.goal4 = self.MetricsInterface.getOutputContainer()['Path4 Easy Transform'].value
         self.goal5 = self.MetricsInterface.getOutputContainer()['Path5 Easy Transform'].value
@@ -269,5 +266,5 @@ class env():
         self.goal7 = self.MetricsInterface.getOutputContainer()['Path7 Easy Transform'].value
         self.goal8 = self.MetricsInterface.getOutputContainer()['Path8 Easy Transform'].value
 
-        self.goals = [self.goal2, self.goal3, self.goal4, self.goal5,
+        self.goals = [self.goal3, self.goal4, self.goal5,
                       self.goal6, self.goal7, self.goal8]

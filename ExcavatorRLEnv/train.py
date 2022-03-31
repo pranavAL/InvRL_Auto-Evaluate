@@ -35,7 +35,7 @@ if __name__ == "__main__":
     agent.save_weights()
     eps_count = 0
 
-    while True:
+    while not env.is_complete:
         env.render(active=False)
         state, _ = env.reset()
         print("New Episode Started")
@@ -54,7 +54,7 @@ if __name__ == "__main__":
 
             if args.test_id == "Dynamic_Dense":
                 agent.save_eps(state, reward*penalty, action, done, state_)
-                total_reward.append(reward*penalty)
+                total_reward.append(reward)
             elif args.test_id == "Dense":
                 agent.save_eps(state, reward, action, done, state_)
                 total_reward.append(reward)
