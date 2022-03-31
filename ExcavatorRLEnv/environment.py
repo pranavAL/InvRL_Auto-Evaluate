@@ -36,9 +36,8 @@ class env():
         self.display.getInput(Vortex.DisplayICD.kPlacement).setValue(Vortex.VxVector4(500, 500, 1280, 720))
 
         #Standardisation
-        self.min = [-2.390703, -0.786492, 0.0, 0.0, 0.0, 0.0, 0.0]
-        self.max = [2.202948, 5.192437, 38.898521, 146173.979222, 889.100139,
-                    73.347609, 1866.730765]
+        self.min = [0.0, 0.0]
+        self.max = [38.898521, 73.347609]
 
         model_name = f"{self.args.model_path.split('.')[0]}"
         model_path = os.path.join('..','save_model', self.args.model_path)
@@ -118,6 +117,8 @@ class env():
         self.ControlInterface.getInputContainer()['Control | Engine Start Switch'].value = True
         self.get_goals()
         self.initial_complexity = self.args.complexity
+        self.power = []
+        self.torque = []
 
         while len(self.rewfeatures) < self.args.seq_len:
             state, reward, penalty = self._get_obs()
@@ -188,16 +189,12 @@ class env():
 
         self.goal = self.goals[self.initial_complexity]
 
-        BuckAng = self.MetricsInterface.getOutputContainer()['Bucket Angle'].value
-        BuckHeight = self.MetricsInterface.getOutputContainer()['Bucket Height'].value
         EngAvgPow = self.MetricsInterface.getOutputContainer()['Engine Average Power'].value
-        CurrEngPow = self.MetricsInterface.getOutputContainer()['Current Engine Power'].value
-        EngTor = self.MetricsInterface.getOutputContainer()['Engine Torque'].value
         EngTorAvg = self.MetricsInterface.getOutputContainer()['Engine Torque Average'].value
-        Engrpm = self.MetricsInterface.getOutputContainer()['Engine RPM (%)'].value
+        self.power.append(EngAvgPow)
+        self.torque.append(EngTorAvg)
 
-        RewardVal = [BuckAng, BuckHeight, EngAvgPow, CurrEngPow, EngTor, EngTorAvg,
-                    Engrpm]
+        RewardVal = [EngAvgPow, EngTorAvg]
 
         RewardVal = list(np.divide(np.subtract(np.array(RewardVal), np.array(self.min)),
                                    np.subtract(np.array(self.max), np.array(self.min))))

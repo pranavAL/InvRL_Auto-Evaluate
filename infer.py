@@ -11,13 +11,28 @@ from random import uniform as u
 import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
 import matplotlib.patches as mpatches
-from train_LSTM import LSTMPredictor, args
+from train_LSTM import LSTMPredictor
+
+parser = argparse.ArgumentParser(description="Hyperparameter Values")
+parser.add_argument('-sq','--seq_len', default=32, type=int, help="Sequence Length for input to LSTM")
+parser.add_argument('-bs','--batch_size', type=int, default=8, help="Batch Size")
+parser.add_argument('-me','--max_epochs', type=int, default=1000, help="Number of epchs to train")
+parser.add_argument('-nf','--n_features', type=int, default=3, help="Length of feature for each sample")
+parser.add_argument('-ls','--latent_spc', type=int,default=8, help='Size of Latent Space')
+parser.add_argument('-kldc','--beta', type=float, default=0.001, help='weighting factor of KLD')
+parser.add_argument('-gam','--gamma', type=float, default=0.1, help='weighting factor of MSE')
+parser.add_argument('-fcd','--fc_dim', type=int, default=64, help="Number of FC Nodes")
+parser.add_argument('-lr','--learning_rate', type=float, default=0.0001, help="Neural Network Learning Rate")
+parser.add_argument('-mp', '--model_path', type=str, default='lstm_vae.pth', help="Saved model path")
+parser.add_argument('-istr','--is_train', type=bool, help="Train or Testing")
+args = parser.parse_args()
 
 model_path = os.path.join('save_model', args.model_path)
-df = pd.read_csv(os.path.join("datasets","test_df.csv"))
+df = pd.read_csv(os.path.join("datasets",'features_to_train.csv'))
 
-train_feats = ['Bucket Angle','Bucket Height','Engine Average Power','Current Engine Power','Engine Torque', 'Engine Torque Average',
-        'Engine RPM (%)', 'Tracks Ground Pressure Front Left', 'Tracks Ground Pressure Front Right']
+train_feats = ['Engine Average Power', 'Engine Torque Average']
+print(f"Min: {df.loc[:,train_feats].min()}")
+print(f"Max: {df.loc[:,train_feats].max()}")
 
 df.loc[:,train_feats] = (df.loc[:,train_feats] - df.loc[:,train_feats].min())/(df.loc[:,train_feats].max() - df.loc[:,train_feats].min())
 
@@ -27,7 +42,9 @@ model = LSTMPredictor(
     seq_len = args.seq_len,
     batch_size = args.batch_size,
     latent_spc = args.latent_spc,
-    learning_rate = args.learning_rate
+    learning_rate = args.learning_rate,
+    epochs = args.max_epochs,
+    beta = args.beta
 )
 
 model.load_state_dict(torch.load(model_path))
@@ -58,15 +75,16 @@ for sess in df["Session id"].unique():
         y_pred.append(recon)
         x_input.append(train)
 
-fig, ax = plt.subplots(3,3)
+fig, ax = plt.subplots(1,3)
 fig.set_size_inches(15, 10)
 train = np.reshape(np.array(x_input), (n_sessions, -1, args.n_features))
 label = np.reshape(np.array(y_pred), (n_sessions, -1, args.n_features))
 for i in range(args.n_features):
-    ax[i//3,i%3].plot(train[0,:,i], color='r', label="Original")
-    ax[i//3,i%3].plot(label[0,:,i], color='b', label="Predicted")
-    ax[i//3,i%3].set_title(f"Feature {i}")
+    ax[i].plot(train[0,:,i], color='r', label="Original")
+    ax[i].plot(label[0,:,i], color='b', label="Predicted")
+    ax[i].set_title(f"Feature {i}")
 
 lines, labels = fig.axes[-1].get_legend_handles_labels()
 fig.legend(lines, labels, loc = 'upper center')
-plt.savefig(f"outputs/{args.seq_len}_steps_lookahead.png", dpi=100)
+#plt.savefig(f"outputs/{args.seq_len}_steps_lookahead.png", dpi=100)
+plt.show()

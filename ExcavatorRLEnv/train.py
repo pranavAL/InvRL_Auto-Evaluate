@@ -53,7 +53,7 @@ if __name__ == "__main__":
             mean_penalty.append(penalty)
 
             if args.test_id == "Dynamic_Dense":
-                agent.save_eps(state, reward*penalty, action, done, state_)
+                agent.save_eps(state, reward + 0.1*penalty, action, done, state_)
                 total_reward.append(reward)
             elif args.test_id == "Dense":
                 agent.save_eps(state, reward, action, done, state_)
@@ -89,6 +89,8 @@ if __name__ == "__main__":
         wandb.log({'Exercise Number of goals met':env.num_goal})
         wandb.log({'Exercise Time':env.ex_time})
         wandb.log({'Avg. Goal Reward per Update':np.mean(mean_reward)})
+        wandb.log({'Avg. Torque per Episode':np.mean(env.torque)})
+        wandb.log({'Avg. Power per Episode':np.mean(env.power)})
 
         while 'saved_buffer.pkl' in os.listdir():
             continue
