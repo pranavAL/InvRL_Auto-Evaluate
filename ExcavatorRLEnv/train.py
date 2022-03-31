@@ -30,7 +30,7 @@ if __name__ == "__main__":
         wandb.init(id=args.wandb_id, resume="must")
         agent.load_weights()
     else:
-        wandb.init(name=f"{args.test_id}_{args.ppo_episodes}", config=args)
+        wandb.init(name=f"{args.test_id}_{args.pen_cons}_{args.complexity}", config=args)
 
     agent.save_weights()
     eps_count = 0
@@ -52,17 +52,14 @@ if __name__ == "__main__":
             mean_reward.append(reward)
             mean_penalty.append(penalty)
 
-            if args.test_id == "Dynamic_Dense":
-                agent.save_eps(state, reward + 0.1*penalty, action, done, state_)
+            if args.test_id == "Dynamic":
+                agent.save_eps(state, reward + args.pen_cons*penalty, action, done, state_)
                 total_reward.append(reward)
             elif args.test_id == "Dense":
                 agent.save_eps(state, reward, action, done, state_)
                 total_reward.append(reward)
-            elif args.test_id == "Dynamic":
-                agent.save_eps(state, penalty, action, done, state_)
-                total_reward.append(penalty)
             else:
-                print("Error: Please choose a reward type: Dynamic_Dense or Dense or Dynamic")
+                print("Error: Please choose a reward type: Dense or Dynamic")
 
             state = state_
 

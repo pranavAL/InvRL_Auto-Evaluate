@@ -24,7 +24,7 @@ class env():
 
         # Define the setup and scene file paths
         self.setup_file = 'Setup.vxc'
-        self.content_file = r'C:\CM Labs\Vortex Construction Assets 21.1\assets\Excavator\Scenes\ArcSwipe\EX_Arc_Swipe.vxscene'
+        self.content_file = f'C:\CM Labs\Vortex Construction Assets 21.1\\assets\Excavator\Scenes\ArcSwipe\EX_Arc_Swipe{args.complexity}.vxscene'
 
         # Create the Vortex Application
         self.application = vxatp3.VxATPConfig.createApplication(self, 'Excavator App', self.setup_file)
@@ -256,12 +256,7 @@ class env():
         self.ex_time = self.MetricsInterface.getOutputContainer()['Exercise Time'].value
 
     def get_goals(self):
-        self.goal3 = self.MetricsInterface.getOutputContainer()['Path3 Easy Transform'].value
-        self.goal4 = self.MetricsInterface.getOutputContainer()['Path4 Easy Transform'].value
-        self.goal5 = self.MetricsInterface.getOutputContainer()['Path5 Easy Transform'].value
-        self.goal6 = self.MetricsInterface.getOutputContainer()['Path6 Easy Transform'].value
-        self.goal7 = self.MetricsInterface.getOutputContainer()['Path7 Easy Transform'].value
-        self.goal8 = self.MetricsInterface.getOutputContainer()['Path8 Easy Transform'].value
+        self.goal1 = self.MetricsInterface.getOutputContainer()['Path3 Easy Transform'].value
+        self.goal2 = self.MetricsInterface.getOutputContainer()['Path2 Medium Transform'].value
 
-        self.goals = [self.goal3, self.goal4, self.goal5,
-                      self.goal6, self.goal7, self.goal8]
+        self.goals = [self.goal1, self.goal2]
