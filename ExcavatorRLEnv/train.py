@@ -30,7 +30,7 @@ if __name__ == "__main__":
         wandb.init(id=args.wandb_id, resume="must")
         agent.load_weights()
     else:
-        wandb.init(name=f"{args.test_id}_{args.pen_cons}_{args.complexity}", config=args)
+        wandb.init(name=f"{args.test_id}_{args.complexity}_{args.pen_cons}", config=args)
 
     agent.save_weights()
     eps_count = 0

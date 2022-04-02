@@ -211,7 +211,7 @@ class env():
 
         states = (states - np.mean(states))/(np.std(states))
         self.goal_distance = dist(self.goal,self.BuckLinPos)
-        reward =  max(1 - self.goal_distance/10.0, 0)
+        reward =  1 - self.goal_distance/10.0
 
         self.get_heuristics()
 
@@ -257,6 +257,7 @@ class env():
 
     def get_goals(self):
         self.goal1 = self.MetricsInterface.getOutputContainer()['Path3 Easy Transform'].value
-        self.goal2 = self.MetricsInterface.getOutputContainer()['Path2 Medium Transform'].value
+        self.goal2 = self.MetricsInterface.getOutputContainer()['Path6 Medium Transform'].value
+        self.goal3 = self.MetricsInterface.getOutputContainer()['Path13 Hard Transform'].value
 
-        self.goals = [self.goal1, self.goal2]
+        self.goals = [self.goal1, self.goal2, self.goal3]

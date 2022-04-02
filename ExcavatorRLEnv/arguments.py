@@ -26,7 +26,7 @@ def get_args():
     parser.add_argument('--wandb_id', type=str, default=None, help="Wandb ID")
 
     parser.add_argument('--is_training', default=1, type=int, help='1 for training and 0 for testing')
-    parser.add_argument('--steps_per_episode', default=1000, type=int, help='Steps per Episode')
+    parser.add_argument('--steps_per_episode', default=500, type=int, help='Steps per Episode')
     parser.add_argument('--complexity', required=True, type=int, help='State the required complexity')
     parser.add_argument('--pen_cons', required=True, type=float, help='Penalty Coefficient')
 

@@ -149,12 +149,12 @@ class Agent:
         self.policy_old.lets_init_weights()
 
     def save_weights(self):
-        torch.save(self.policy.state_dict(), os.path.join(self.args.save_dir,f'{self.args.complexity}actor_ppo.pth'))
-        torch.save(self.policy_old.state_dict(), os.path.join(self.args.save_dir,f'{self.args.complexity}old_actor_ppo.pth'))
+        torch.save(self.policy.state_dict(), os.path.join(self.args.save_dir,'actor_ppo.pth'))
+        torch.save(self.policy_old.state_dict(), os.path.join(self.args.save_dir,'old_actor_ppo.pth'))
 
     def load_weights(self):
-        self.policy.load_state_dict(torch.load(os.path.join(self.args.save_dir,f'{self.args.complexity}actor_ppo.pth')))
-        self.policy_old.load_state_dict(torch.load(os.path.join(self.args.save_dir,f'{self.args.complexity}old_actor_ppo.pth')))
+        self.policy.load_state_dict(torch.load(os.path.join(self.args.save_dir,'actor_ppo.pth')))
+        self.policy_old.load_state_dict(torch.load(os.path.join(self.args.save_dir,'old_actor_ppo.pth')))
 
 
 if __name__ == "__main__":
@@ -163,7 +163,7 @@ if __name__ == "__main__":
     if args.wandb_id:
         wandb.init(id=args.wandb_id, resume="must")
     else:
-        wandb.init(name=f"{args.test_id}_{args.ppo_episodes}", config=args)
+        wandb.init(name=f"{args.test_id}_{args.complexity}_{args.pen_cons}", config=args)
 
     agent = Agent(args)
     wandb.watch(agent.policy, log_freq=100)
