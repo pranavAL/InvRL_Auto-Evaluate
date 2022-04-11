@@ -31,13 +31,15 @@ class CraneDatasetModule():
         self.batch_size = batch_size
         self.num_workers = num_workers
 
-        self.X_train, self.Y_train_recon = self.get_data('features_to_train.csv')
+        self.X_train, self.Y_train_recon = self.get_data('train_df.csv')
         self.X_val, self.Y_val_recon = self.get_data('val_df.csv')
-        #self.X_test, self.Y_test_recon = self.get_data('test_df.csv')
+        self.X_test, self.Y_test_recon = self.get_data('test_df.csv')
 
     def get_data(self, file_type):
 
-        train_feats = ['Engine Average Power', 'Engine Torque Average']
+        train_feats = ['Engine Average Power', 'Engine Torque Average', 'Fuel Consumption Rate Average', 
+                        'Number of tennis balls knocked over by operator','Number of equipment collisions', 'Number of poles that fell over',
+                        'Number of poles touched', 'Collisions with environment']
 
         train_data_path = os.path.join("datasets",file_type)
 
@@ -49,12 +51,9 @@ class CraneDatasetModule():
         pred = []
         for sess in df['Session id'].unique():
             sess_feat = df.loc[df["Session id"]==sess,:]
-            terminate = 2*self.seq_len
-            score = abs(sess_feat.loc[:,"Current trainee score at that time"].sum())
-            if score <= 25:
-                for i in range(0,len(sess_feat)-terminate):
-                    input.append(list(sess_feat.iloc[i:i+self.seq_len,:][train_feats].values))
-                    pred.append(list(sess_feat.iloc[i+self.seq_len-1:i+terminate-1,:][train_feats].values))
+            for i in range(0,len(sess_feat)-self.seq_len):
+                input.append(list(sess_feat.iloc[i:i+self.seq_len,:][train_feats].values))
+                pred.append(list(sess_feat.iloc[i:i+self.seq_len,:][train_feats].values))
 
         return torch.tensor(input).float(), torch.tensor(pred).float()
 
@@ -70,11 +69,11 @@ class CraneDatasetModule():
 
         return val_loader
 
-    # def test_dataloader(self):
-    #     test_dataset = CraneDataset(self.X_test, self.Y_test_recon)
-    #     test_loader = DataLoader(test_dataset, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers, drop_last=True)
-    #
-    #     return test_loader
+    def test_dataloader(self):
+        test_dataset = CraneDataset(self.X_test, self.Y_test_recon)
+        test_loader = DataLoader(test_dataset, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers, drop_last=True)
+    
+        return test_loader
 
 class Encoder(nn.Module):
     def __init__(self, n_features, latent_spc, fc_dim):
@@ -142,7 +141,6 @@ class LSTMPredictor(pl.LightningModule):
         self.save_hyperparameters()
 
     def forward(self, x, y_decod, is_train):
-        inp_batch_size = x.size(0)
         x, mu, logvar = self.encoder(x)
         hidden = (x, x)
         output = []
@@ -153,7 +151,7 @@ class LSTMPredictor(pl.LightningModule):
         else:
             batch_size = y_decod.size()[0]
             out = y_decod[:,0,:].unsqueeze(1)
-            for i in range(self.seq_len):
+            for _ in range(self.seq_len):
                 out, hidden = self.decoder(out, hidden)
                 output.append(out)
             output = torch.stack(output, dim=0)
@@ -198,8 +196,8 @@ if __name__ == "__main__":
     parser.add_argument('-sq','--seq_len', default=32, type=int, help="Sequence Length for input to LSTM")
     parser.add_argument('-bs','--batch_size', type=int, default=8, help="Batch Size")
     parser.add_argument('-me','--max_epochs', type=int, default=1000, help="Number of epchs to train")
-    parser.add_argument('-nf','--n_features', type=int, default=2, help="Length of feature for each sample")
-    parser.add_argument('-ls','--latent_spc', type=int,default=4, help='Size of Latent Space')
+    parser.add_argument('-nf','--n_features', type=int, default=8, help="Length of feature for each sample")
+    parser.add_argument('-ls','--latent_spc', type=int,default=8, help='Size of Latent Space')
     parser.add_argument('-kldc','--beta', type=float, default=0.001, help='weighting factor of KLD')
     parser.add_argument('-gam','--gamma', type=float, default=0.1, help='weighting factor of MSE')
     parser.add_argument('-fcd','--fc_dim', type=int, default=64, help="Number of FC Nodes")
@@ -218,7 +216,7 @@ if __name__ == "__main__":
 
     train_loader = dm.train_dataloader()
     val_loader = dm.val_dataloader()
-    # test_loader = dm.test_dataloader()
+    test_loader = dm.test_dataloader()
 
     seed_everything(1)
 
@@ -243,7 +241,7 @@ if __name__ == "__main__":
     wandb_logger.watch(model, log="all")
 
     trainer.fit(model, train_loader)
-    # trainer.test(model, test_dataloaders=test_loader)
+    trainer.test(model, test_dataloaders=test_loader)
 
     torch.save(model.state_dict(), model_path)
 
