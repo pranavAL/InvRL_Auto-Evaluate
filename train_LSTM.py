@@ -168,13 +168,15 @@ class LSTMPredictor(pl.LightningModule):
     def final_process(self, batch, p_type, is_train):
         x, y_decod = batch
         y_hat, mu, logvar = self(x, y_decod, is_train)
-
-        rloss = F.mse_loss(y_hat, y_decod)
+        
+        rloss_mac = F.mse_loss(y_hat[:,:,:3], y_decod[:,:,:3])
+        rloss_pen = F.mse_loss(y_hat[:,:,3:], y_decod[:,:,3:])
         kld = -0.5 * torch.sum(1 + logvar -mu.pow(2) - logvar.exp())
        
-        loss = rloss + kld * self.beta
+        loss = 0.2*rloss_mac + 0.99*rloss_pen + kld * self.beta
 
-        self.log(f'{p_type}/recon_loss', rloss, on_epoch=True)
+        self.log(f'{p_type}/recon_loss_machine', rloss_mac, on_epoch=True)
+        self.log(f'{p_type}/recon_loss_penalty', rloss_pen, on_epoch=True)
         self.log(f'{p_type}/kld', kld, on_epoch=True)
         self.log(f'{p_type}/total_loss', loss, on_epoch=True)
 
