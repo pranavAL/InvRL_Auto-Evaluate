@@ -1,11 +1,12 @@
 import os
+from typing import get_args
 import torch
 import wandb
-import argparse
 import warnings
 import numpy as np
 import pandas as pd
 import torch.nn as nn
+from arguments import get_args
 import pytorch_lightning as pl
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
@@ -42,10 +43,12 @@ class CraneDatasetModule():
                         'Number of poles touched', 'Collisions with environment']
 
         train_data_path = os.path.join("datasets",file_type)
+        full_data_path = os.path.join("datasets", "features_to_train.csv")
+        fd = pd.read_csv(full_data_path)
 
         df = pd.read_csv(train_data_path)
 
-        df.loc[:,train_feats] = (df.loc[:,train_feats] - df.loc[:,train_feats].min())/(df.loc[:,train_feats].max() - df.loc[:,train_feats].min())
+        df.loc[:,train_feats] = (df.loc[:,train_feats] - fd.loc[:,train_feats].min())/(fd.loc[:,train_feats].max() - fd.loc[:,train_feats].min())
 
         input = []
         pred = []
@@ -85,7 +88,7 @@ class Encoder(nn.Module):
         self.lstm = nn.LSTM(input_size=self.n_features,
                              hidden_size=self.n_features,
                              batch_first=True,
-                             dropout=0.2)
+                             dropout=0.3)
 
         self.elu = nn.ELU()
         self.fc = nn.Linear(self.n_features, self.fc_dim)
@@ -117,7 +120,7 @@ class Decoder(nn.Module):
         self.lstm = nn.LSTM(input_size=self.n_features,
                              hidden_size=self.n_features,
                              batch_first=True,
-                             dropout=0.2)
+                             dropout=0.3)
 
     def forward(self, inp, hidden):
         out, hidden = self.lstm(inp, hidden)
@@ -168,9 +171,8 @@ class LSTMPredictor(pl.LightningModule):
 
         rloss = F.mse_loss(y_hat, y_decod)
         kld = -0.5 * torch.sum(1 + logvar -mu.pow(2) - logvar.exp())
-        beta = ((self.current_epoch//50)/self.max_epochs) * self.beta
-
-        loss = rloss + kld * beta
+       
+        loss = rloss + kld * self.beta
 
         self.log(f'{p_type}/recon_loss', rloss, on_epoch=True)
         self.log(f'{p_type}/kld', kld, on_epoch=True)
@@ -192,19 +194,7 @@ class LSTMPredictor(pl.LightningModule):
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description="Hyperparameter Values")
-    parser.add_argument('-sq','--seq_len', default=32, type=int, help="Sequence Length for input to LSTM")
-    parser.add_argument('-bs','--batch_size', type=int, default=8, help="Batch Size")
-    parser.add_argument('-me','--max_epochs', type=int, default=1000, help="Number of epchs to train")
-    parser.add_argument('-nf','--n_features', type=int, default=8, help="Length of feature for each sample")
-    parser.add_argument('-ls','--latent_spc', type=int,default=8, help='Size of Latent Space')
-    parser.add_argument('-kldc','--beta', type=float, default=0.001, help='weighting factor of KLD')
-    parser.add_argument('-gam','--gamma', type=float, default=0.1, help='weighting factor of MSE')
-    parser.add_argument('-fcd','--fc_dim', type=int, default=64, help="Number of FC Nodes")
-    parser.add_argument('-lr','--learning_rate', type=float, default=0.0001, help="Neural Network Learning Rate")
-    parser.add_argument('-mp', '--model_path', type=str, default='lstm_vae.pth', help="Saved model path")
-    parser.add_argument('-istr','--is_train', type=bool, help="Train or Testing")
-    args = parser.parse_args()
+    args = get_args()
 
     dm = CraneDatasetModule(
         seq_len = args.seq_len,
@@ -236,13 +226,15 @@ if __name__ == "__main__":
     trainer = Trainer(max_epochs=args.max_epochs,
                     gpus = 1,
                     logger=wandb_logger,
-                    log_every_n_steps=500)
+                    log_every_n_steps=500,
+                    )
 
     wandb_logger.watch(model, log="all")
 
-    trainer.fit(model, train_loader)
-    trainer.test(model, test_dataloaders=test_loader)
+    trainer.fit(model, train_loader, val_loader)
+    trainer.test(model, dataloaders=test_loader)
 
     torch.save(model.state_dict(), model_path)
+    print("Saved")
 
     wandb.finish()

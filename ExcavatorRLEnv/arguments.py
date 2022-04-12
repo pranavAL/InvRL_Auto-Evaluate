@@ -1,7 +1,6 @@
 import os
 import argparse
 import torch
-import shutil
 import random
 import numpy as np
 
