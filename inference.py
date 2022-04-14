@@ -55,22 +55,18 @@ def get_embeddings(data, label):
 def save_meta_data(df):
     meta_data = pd.DataFrame(columns=['sess', 'embeddings','Number of tennis balls knocked over by operator',
                'Number of equipment collisions', 'Number of poles that fell over',
-               'Number of poles touched', 'Collisions with environment'])
-    buckets = [i for i in range(0,11,2)]           
+               'Number of poles touched', 'Collisions with environment'])          
     
     for sess in df["Session id"].unique():
         sess_feat = df.loc[df["Session id"]==sess,:]
         terminate = args.seq_len
-        score = abs(sess_feat['Current trainee score at that time'].sum())
-        if score // 10 in buckets:
-            buckets.remove(score // 10)
-            for i in range(0,len(sess_feat)-terminate):
-                train = list(sess_feat.iloc[i:i+args.seq_len,:][train_feats].values)
-                init_label = list(sess_feat.iloc[i:i+args.seq_len,:][train_feats].values)
-                penlt_feat = list(sess_feat.iloc[i:i+args.seq_len,:][train_feats[3:]].max().values)
-                mu = get_embeddings(torch.tensor(train).float(), torch.tensor(init_label).float())
-                meta_data.loc[len(meta_data)] = [sess, list(mu.astype(float)), *penlt_feat]
-    
+        for i in range(0,len(sess_feat)-terminate):
+            train = list(sess_feat.iloc[i:i+args.seq_len,:][train_feats].values)
+            init_label = list(sess_feat.iloc[i:i+args.seq_len,:][train_feats].values)
+            penlt_feat = list(sess_feat.iloc[i:i+args.seq_len,:][train_feats[3:]].max().values)
+            mu = get_embeddings(torch.tensor(train).float(), torch.tensor(init_label).float())
+            meta_data.loc[len(meta_data)] = [sess, list(mu.astype(float)), *penlt_feat]
+
     meta_data = get_tsne(meta_data)
     meta_data.to_csv(f"outputs/{model_name}")
     return meta_data

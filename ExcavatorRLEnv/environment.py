@@ -3,16 +3,14 @@ warnings.filterwarnings('ignore')
 
 import Vortex
 import vxatp3
-import random
 import numpy as np
-import math
 import torch
 import os
+import pandas as pd
 from train_LSTM import LSTMPredictor
 from math import dist
 
 SUB_STEPS = 5
-
 class env():
 
     def __init__(self, args):
@@ -21,7 +19,20 @@ class env():
         self.scene = None
         self.interface = None
         self.args = args
-
+        
+        full_data_path = os.path.join("..","datasets","features_to_train.csv")
+        fd = pd.read_csv(full_data_path)
+        self.train_feats = ['Engine Average Power', 'Engine Torque Average', 'Fuel Consumption Rate Average', 
+                            'Number of tennis balls knocked over by operator', 'Number of equipment collisions', 
+                            'Number of poles that fell over', 'Number of poles touched', 
+                            'Collisions with environment']
+        
+        self.max_val = fd.loc[:,self.train_feats].max()
+        self.min_val = fd.loc[:,self.train_feats].min()
+        fd.loc[:,self.train_feats] = (fd.loc[:,self.train_feats] - self.min_val)/(self.max_val - self.min_val)               
+        
+        self.exp_values = fd.loc[fd["Session id"]=='5efb9aacbcf5631c14097d5d', self.train_feats]
+        
         # Define the setup and scene file paths
         self.setup_file = 'Setup.vxc'
         self.content_file = f'C:\CM Labs\Vortex Construction Assets 21.1\\assets\Excavator\Scenes\ArcSwipe\EX_Arc_Swipe{args.complexity}.vxscene'
@@ -35,11 +46,6 @@ class env():
         self.display.setName('3D Display')
         self.display.getInput(Vortex.DisplayICD.kPlacement).setValue(Vortex.VxVector4(500, 500, 1280, 720))
 
-        #Standardisation
-        self.min = [0.0, 0.0]
-        self.max = [38.898521, 73.347609]
-
-        model_name = f"{self.args.model_path.split('.')[0]}"
         model_path = os.path.join('..','save_model', self.args.model_path)
 
         self.model = LSTMPredictor(
@@ -58,27 +64,158 @@ class env():
         self.model.eval()
         self.is_complete = False
 
-    def __del__(self):
-        # It is always a good idea to destroy the VxApplication when we are done with it.
-        self.application = None
-
-    def get_numpy(self, x):
-        return x.squeeze().to('cpu').detach().numpy()
-
-    def get_penalty(self, data, label):
-        data = data.unsqueeze(0).to(self.model.device)
-        label = label.view(1,1,-1).to(self.model.device)
-        z, mu, logvar = self.model(data, label, is_train=False)
-        penalty = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-        return self.get_numpy(z), self.get_numpy(penalty)
+        self.env_col = []
+        self.knock_ball = []
+        self.touch_pole = []
+        self.fell_pole = []
+        self.coll_equip = []
+        self.tor_avg = []
+        self.pow_avg = []
+        self.avg_fuel = []
 
     def reset(self):
         # Initialize Reward and Step Count
         self.reward = 0
-        self.rewfeatures = []
         self.thres_dist = 1.0
         self.current_steps = 0
+        self.rewfeatures = []
+        self.per_step_fuel = []
+        self.per_step_power = []
+        self.per_step_torque = []
 
+        self.load_scene()
+        self.initial_complexity = self.args.complexity
+        self.get_goals()
+        
+        while len(self.rewfeatures) < self.args.seq_len:
+            state, reward, _ = self._get_obs()
+
+        return state, reward
+
+    def step(self, action):  # takes a numpy array as input
+
+        # Apply actions
+        self.ControlInterface.getInputContainer()['Swing [3] | Control Input'].value = action[0].item()
+        self.ControlInterface.getInputContainer()['Bucket [2] | Control Input'].value = action[1].item()
+        self.ControlInterface.getInputContainer()['Stick [1] | Control Input'].value = action[2].item()
+        self.ControlInterface.getInputContainer()['Boom [0] | Control Input'].value = action[3].item()
+
+        # Step the simulation
+        for _ in range(SUB_STEPS):
+            self.application.update()
+
+        # Observations
+        obs, reward, penalty = self._get_obs()
+
+        if self.goal_distance < self.thres_dist:
+            print(f"Reached Checkpoint: {self.initial_complexity}")
+            self.is_complete = True
+
+        # Done flag
+        if self.current_steps + 1 > self.args.steps_per_episode or self.is_complete:
+            print("Episode over")
+            done = True
+            self.knock_ball.append(self.ball_knock)
+            self.touch_pole.append(self.pole_touch)
+            self.fell_pole.append(self.pole_fell)
+            self.coll_equip.append(self.equip_coll)
+            self.env_col.append(self.coll_env)
+            self.tor_avg.append(np.mean(self.per_step_torque))
+            self.pow_avg.append(np.mean(self.per_step_power))
+            self.avg_fuel.append(np.mean(self.per_step_fuel))
+        else:
+            done = False
+
+        self.current_steps += 1
+
+        return obs, reward, penalty, done, {}
+
+    def _get_obs(self):
+        reward = 0
+        penalty = 0
+
+        self.SwingLinPos = self.ControlInterface.getOutputContainer()['State | Actuator Swing LinPosition'].value
+        self.BoomLinPos = self.ControlInterface.getOutputContainer()['State | Actuator Boom LinPosition'].value
+        self.BuckLinPos = self.ControlInterface.getOutputContainer()['State | Actuator Bucket LinPosition'].value
+        self.StickLinPos = self.ControlInterface.getOutputContainer()['State | Actuator Arm LinPosition'].value
+
+        self.SwingAngVel = self.ControlInterface.getOutputContainer()['State | Actuator Swing AngVelocity'].value
+        self.BoomAngvel = self.ControlInterface.getOutputContainer()['State | Actuator  Boom AngVelocity'].value
+        self.BuckAngvel = self.ControlInterface.getOutputContainer()['State | Actuator Bucket AngVelocity'].value
+        self.StickAngvel = self.ControlInterface.getOutputContainer()['State | Actuator Arm AngVelocity'].value
+
+        self.BoomLinvel = self.ControlInterface.getOutputContainer()['State | Actuator Boom LinVelocity'].value
+        self.BuckLinvel = self.ControlInterface.getOutputContainer()['State | Actuator Bucket LinVelocity'].value
+        self.StickLinvel = self.ControlInterface.getOutputContainer()['State | Actuator Arm LinVelocity'].value
+
+        self.SwingAngPos = self.ControlInterface.getOutputContainer()['State | Actuator Swing AngPosition'].value
+        self.BoomAngPos = self.ControlInterface.getOutputContainer()['State | Actuator  Boom AngPosition'].value
+        self.BuckAngPos = self.ControlInterface.getOutputContainer()['State | Actuator Bucket AngPosition'].value
+        self.StickAngPos = self.ControlInterface.getOutputContainer()['State | Actuator Arm AngPosition'].value
+
+        self.goal = self.goals[self.initial_complexity]
+        self.get_heuristics()
+        
+        RewardVal = [self.EngAvgPow, self.EngTorAvg, self.fuelCons, self.ball_knock,
+                     self.equip_coll, self.pole_fell, self.pole_touch, self.coll_env]
+
+        RewardVal = self.normalize(RewardVal)
+
+        self.rewfeatures.append(RewardVal)
+
+        if len(self.rewfeatures) >= self.args.seq_len:
+            exp_input = torch.tensor(list(self.exp_values.iloc[self.current_steps:self.current_steps+self.args.seq_len,:][self.train_feats].values)).float()
+            pol_input = torch.tensor(self.rewfeatures[self.current_steps:self.current_steps+self.args.seq_len]).float()
+            penalty = self.get_penalty(exp_input, pol_input)                           
+
+        states = np.array([*self.SwingLinPos, *self.BoomLinPos, *self.BuckLinPos, *self.StickLinPos,
+                           self.SwingAngVel, self.BoomAngvel, self.BuckAngvel, self.StickAngvel,
+                           self.BoomLinvel, self.BuckLinvel, self.StickLinvel])
+
+        states = (states - np.mean(states))/(np.std(states))
+        self.goal_distance = dist(self.goal,self.BuckLinPos)
+        reward =  1 - self.goal_distance/10.0
+
+        return states, reward, (1 - penalty)
+
+    def get_heuristics(self):
+        self.ball_knock = self.MetricsInterface.getOutputContainer()['Number of tennis balls knocked over by operator'].value
+        self.pole_touch = self.MetricsInterface.getOutputContainer()['Number of poles touched'].value
+        self.pole_fell = self.MetricsInterface.getOutputContainer()['Number of poles that fell over'].value
+        self.equip_coll = self.MetricsInterface.getOutputContainer()['Number of equipment collisions'].value
+        self.coll_env = self.MetricsInterface.getOutputContainer()['Collisions with environment'].value
+        self.EngAvgPow = self.MetricsInterface.getOutputContainer()['Engine Average Power'].value
+        self.EngTorAvg = self.MetricsInterface.getOutputContainer()['Engine Torque Average'].value
+        self.fuelCons = self.MetricsInterface.getOutputContainer()['Fuel Consumption Rate Average'].value
+
+        self.per_step_torque.append(self.EngTorAvg)
+        self.per_step_power.append(self.EngAvgPow)
+        self.per_step_fuel.append(self.fuelCons)
+
+    def get_goals(self):
+        self.goal1 = self.MetricsInterface.getOutputContainer()['Path3 Easy Transform'].value
+        self.goal2 = self.MetricsInterface.getOutputContainer()['Path8 Easy Transform'].value
+        self.goal3 = self.MetricsInterface.getOutputContainer()['Path13 Hard Transform'].value
+
+        self.goals = [self.goal1, self.goal2, self.goal3]
+
+    def normalize(self, features):
+        features = list(np.divide(np.subtract(np.array(features), np.array(self.min_val)),
+                                  np.subtract(np.array(self.max_val), np.array(self.min_val))))
+        return features                            
+    
+    def get_numpy(self, x):
+        return x.squeeze().to('cpu').detach().numpy()
+
+    def get_penalty(self, expert, novice):
+        expert = expert.unsqueeze(0).to(self.model.device)
+        novice = novice.unsqueeze(0).to(self.model.device)
+        exp_embedd, _, _ = self.model.encoder(expert)
+        nov_embedd, _, _ = self.model.encoder(novice)
+        penalty = torch.dist(exp_embedd.squeeze(), nov_embedd.squeeze(), 2)
+        return self.get_numpy(penalty)
+
+    def load_scene(self):
         # The first time we load the scene
         if self.vxscene is None:
             # Switch to Editing Mode
@@ -115,16 +252,7 @@ class env():
             self.application.update()
 
         self.ControlInterface.getInputContainer()['Control | Engine Start Switch'].value = True
-        self.get_goals()
-        self.initial_complexity = self.args.complexity
-        self.power = []
-        self.torque = []
-
-        while len(self.rewfeatures) < self.args.seq_len:
-            state, reward, penalty = self._get_obs()
-
-        return state, reward
-
+    
     def waitForNbKeyFrames(self, expectedNbKeyFrames, application, keyFrameList):
         maxNbIter = 100
         nbIter = 0
@@ -132,91 +260,7 @@ class env():
             if not application.update():
                 break
             ++nbIter
-
-    def step(self, action):  # takes a numpy array as input
-
-        # Apply actions
-        self.ControlInterface.getInputContainer()['Swing [3] | Control Input'].value = action[0].item()
-        self.ControlInterface.getInputContainer()['Bucket [2] | Control Input'].value = action[1].item()
-        self.ControlInterface.getInputContainer()['Stick [1] | Control Input'].value = action[2].item()
-        self.ControlInterface.getInputContainer()['Boom [0] | Control Input'].value = action[3].item()
-
-        # Step the simulation
-        for i in range(SUB_STEPS):
-            self.application.update()
-
-        # Observations
-        obs, reward, penalty = self._get_obs()
-
-        if self.goal_distance < self.thres_dist:
-            print(f"Reached Checkpoint: {self.initial_complexity}")
-            self.is_complete = True
-
-        # Done flag
-        if self.current_steps > self.args.steps_per_episode or self.is_complete:
-            print("Episode over")
-            done = True
-        else:
-            done = False
-
-        self.current_steps += 1
-
-        return obs, reward, penalty, done, {}
-
-    def _get_obs(self):
-        reward = 0
-        penalty = 0
-
-        self.SwingLinPos = self.ControlInterface.getOutputContainer()['State | Actuator Swing LinPosition'].value
-        self.BoomLinPos = self.ControlInterface.getOutputContainer()['State | Actuator Boom LinPosition'].value
-        self.BuckLinPos = self.ControlInterface.getOutputContainer()['State | Actuator Bucket LinPosition'].value
-        self.StickLinPos = self.ControlInterface.getOutputContainer()['State | Actuator Arm LinPosition'].value
-
-        self.SwingAngVel = self.ControlInterface.getOutputContainer()['State | Actuator Swing AngVelocity'].value
-        self.BoomAngvel = self.ControlInterface.getOutputContainer()['State | Actuator  Boom AngVelocity'].value
-        self.BuckAngvel = self.ControlInterface.getOutputContainer()['State | Actuator Bucket AngVelocity'].value
-        self.StickAngvel = self.ControlInterface.getOutputContainer()['State | Actuator Arm AngVelocity'].value
-
-        self.BoomLinvel = self.ControlInterface.getOutputContainer()['State | Actuator Boom LinVelocity'].value
-        self.BuckLinvel = self.ControlInterface.getOutputContainer()['State | Actuator Bucket LinVelocity'].value
-        self.StickLinvel = self.ControlInterface.getOutputContainer()['State | Actuator Arm LinVelocity'].value
-
-        self.SwingAngPos = self.ControlInterface.getOutputContainer()['State | Actuator Swing AngPosition'].value
-        self.BoomAngPos = self.ControlInterface.getOutputContainer()['State | Actuator  Boom AngPosition'].value
-        self.BuckAngPos = self.ControlInterface.getOutputContainer()['State | Actuator Bucket AngPosition'].value
-        self.StickAngPos = self.ControlInterface.getOutputContainer()['State | Actuator Arm AngPosition'].value
-
-
-        self.goal = self.goals[self.initial_complexity]
-
-        EngAvgPow = self.MetricsInterface.getOutputContainer()['Engine Average Power'].value
-        EngTorAvg = self.MetricsInterface.getOutputContainer()['Engine Torque Average'].value
-        self.power.append(EngAvgPow)
-        self.torque.append(EngTorAvg)
-
-        RewardVal = [EngAvgPow, EngTorAvg]
-
-        RewardVal = list(np.divide(np.subtract(np.array(RewardVal), np.array(self.min)),
-                                   np.subtract(np.array(self.max), np.array(self.min))))
-
-        self.rewfeatures.append(RewardVal)
-
-        if len(self.rewfeatures) >= self.args.seq_len:
-            trainfeatures = np.array(self.rewfeatures)
-            z, penalty = self.get_penalty(torch.tensor(trainfeatures[-self.args.seq_len:,:]).float(), torch.tensor(trainfeatures[-1,:]).float())
-
-        states = np.array([*self.SwingLinPos, *self.BoomLinPos, *self.BuckLinPos, *self.StickLinPos,
-                           self.SwingAngVel, self.BoomAngvel, self.BuckAngvel, self.StickAngvel,
-                           self.BoomLinvel, self.BuckLinvel, self.StickLinvel])
-
-        states = (states - np.mean(states))/(np.std(states))
-        self.goal_distance = dist(self.goal,self.BuckLinPos)
-        reward =  1 - self.goal_distance/10.0
-
-        self.get_heuristics()
-
-        return states, reward, (1-penalty)
-
+    
     def render(self, active=True):
 
         # Find current list of displays
@@ -233,31 +277,6 @@ class env():
                 self.application.remove(current_displays[0])
             self.application.setSyncMode(Vortex.kSyncNone)
 
-    def get_heuristics(self):
-        self.arc_restart = self.MetricsInterface.getOutputContainer()['Number of times user had to restart an arc'].value
-        self.cur_score = self.MetricsInterface.getOutputContainer()['Current path score'].value
-        self.tot_out_path = self.MetricsInterface.getOutputContainer()['Total time out of path'].value
-        self.cur_pat_tim = self.MetricsInterface.getOutputContainer()['Current path time'].value
-        self.avg_tim_pat = self.MetricsInterface.getOutputContainer()['Average time per path'].value
-        self.avg_sco_pat = self.MetricsInterface.getOutputContainer()['Average score per path'].value
-        self.cur_pat_out_time = self.MetricsInterface.getOutputContainer()['Current path time out of range'].value
-        self.avg_pat_out_time = self.MetricsInterface.getOutputContainer()['Average time out of path range'].value
-        self.ball_knock = self.MetricsInterface.getOutputContainer()['Number of tennis balls knocked over by operator'].value
-        self.pole_touch = self.MetricsInterface.getOutputContainer()['Number of poles touched'].value
-        self.pole_fell = self.MetricsInterface.getOutputContainer()['Number of poles that fell over'].value
-        self.barr_touch = self.MetricsInterface.getOutputContainer()['Number of barrels touches'].value
-        self.barr_knock = self.MetricsInterface.getOutputContainer()['Number of barrels knocked over'].value
-        self.equip_coll = self.MetricsInterface.getOutputContainer()['Number of equipment collisions'].value
-        self.num_idle = self.MetricsInterface.getOutputContainer()['Number of times machine was left idling'].value
-        self.buck_self = self.MetricsInterface.getOutputContainer()['Bucket Self Contact'].value
-        self.rat_idle = self.MetricsInterface.getOutputContainer()['Ratio of time that operator runs equipment vs idle time'].value
-        self.coll_env = self.MetricsInterface.getOutputContainer()['Collisions with environment'].value
-        self.num_goal = self.MetricsInterface.getOutputContainer()['Exercise Number of goals met'].value
-        self.ex_time = self.MetricsInterface.getOutputContainer()['Exercise Time'].value
-
-    def get_goals(self):
-        self.goal1 = self.MetricsInterface.getOutputContainer()['Path3 Easy Transform'].value
-        self.goal2 = self.MetricsInterface.getOutputContainer()['Path6 Medium Transform'].value
-        self.goal3 = self.MetricsInterface.getOutputContainer()['Path13 Hard Transform'].value
-
-        self.goals = [self.goal1, self.goal2, self.goal3]
+    def __del__(self):
+        # It is always a good idea to destroy the VxApplication when we are done with it.
+        self.application = None        

@@ -25,24 +25,23 @@ def get_args():
     parser.add_argument('--wandb_id', type=str, default=None, help="Wandb ID")
 
     parser.add_argument('--is_training', default=1, type=int, help='1 for training and 0 for testing')
-    parser.add_argument('--steps_per_episode', default=500, type=int, help='Steps per Episode')
+    parser.add_argument('--steps_per_episode', default=246, type=int, help='Steps per Episode')
     parser.add_argument('--complexity', required=True, type=int, help='State the required complexity')
-    parser.add_argument('--pen_cons', required=True, type=float, help='Penalty Coefficient')
-
+   
     parser.add_argument('-sq','--seq_len', type=int, default=32, help="Sequence Length for input to LSTM")
     parser.add_argument('-bs','--batch_size', type=int, default=8, help="Batch Size")
     parser.add_argument('-lr','--learning_rate', type=float, default=0.0003, help="Neural Network Learning Rate")
     parser.add_argument('-mp', '--model_path', type=str, default='lstm_vae.pth', help="Saved model path")
-    parser.add_argument('-ls','--latent_spc', type=int,default=4, help='Size of Latent Space')
+    parser.add_argument('-ls','--latent_spc', type=int,default=8, help='Size of Latent Space')
     parser.add_argument('-fcd','--fc_dim', type=int, default=64, help="Number of FC Nodes")
-    parser.add_argument('-nf','--n_features', type=int, default=2, help="Length of feature for each sample")
+    parser.add_argument('-nf','--n_features', type=int, default=8, help="Length of feature for each sample")
     parser.add_argument('-me','--max_epochs', type=int, default=1000, help="Number of epchs to train")
     parser.add_argument('-kldc','--beta', type=float, default=0.001, help='weighting factor of KLD')
 
     args = parser.parse_args()
     args.is_training = bool(args.is_training)
 
-    args.save_dir = os.path.join(args.save_dir, 'train', f"{args.test_id}_{args.complexity}_{args.pen_cons}")
+    args.save_dir = os.path.join(args.save_dir, 'train', f"{args.test_id}_{args.complexity}")
     os.makedirs(args.save_dir, exist_ok=True)
 
     if 'saved_buffer.pkl' in os.listdir():
@@ -50,7 +49,7 @@ def get_args():
 
     use_cuda = torch.cuda.is_available()
     args.device = torch.device("cuda" if use_cuda else "cpu")
-    dataType = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.FloatTensor
+    
     torch.manual_seed(1)
     np.random.seed(1)
     random.seed(1)

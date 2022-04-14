@@ -7,7 +7,6 @@ from network import PPO
 from arguments import get_args
 from replay_buffer import Memory
 from torch.distributions import MultivariateNormal
-
 class Agent:
     def __init__(self, args):
         self.policy_clip = args.policy_clip
@@ -84,7 +83,7 @@ class Agent:
 
     def act(self, state, is_training=True):
 
-        self.is_training_mode = True
+        self.is_training_mode = is_training
         state = torch.FloatTensor(state).to(self.args.device)
         action_mean, _ = self.policy_old(state)
 
@@ -107,14 +106,13 @@ class Agent:
 
         self.meta_data = {'Total_Loss':[],'Value':[],'Advantage':[],'Entropy':[],'TD':[],'Critic_Loss':[],'KL':[],'Policy_Loss':[], 'Learning_Rate':[]}
 
-        for epoch in range(self.PPO_epochs):
+        for _ in range(self.PPO_epochs):
 
             loss = self.evaluate_loss(states, actions, rewards, next_states, dones)
             self.policy_optimizer.zero_grad()
 
             loss.mean().backward()
             self.policy_optimizer.step()
-            #self.scheduler.step()
 
         self.memory.deleteBuffer()
         self.policy_old.load_state_dict(self.policy.state_dict())
@@ -155,14 +153,13 @@ class Agent:
         self.policy.load_state_dict(torch.load(os.path.join(self.args.save_dir,'actor_ppo.pth')))
         self.policy_old.load_state_dict(torch.load(os.path.join(self.args.save_dir,'old_actor_ppo.pth')))
 
-
 if __name__ == "__main__":
     args = get_args()
 
     if args.wandb_id:
         wandb.init(id=args.wandb_id, resume="must")
     else:
-        wandb.init(name=f"{args.test_id}_{args.complexity}_{args.pen_cons}", config=args)
+        wandb.init(name=f"{args.test_id}_{args.complexity}_policy", config=args)
 
     agent = Agent(args)
     wandb.watch(agent.policy, log_freq=100)
