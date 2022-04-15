@@ -1,5 +1,4 @@
 import os
-import wandb
 import torch
 import numpy as np
 import torch.nn as nn
@@ -81,7 +80,7 @@ class Agent:
 
         return loss
 
-    def act(self, state, is_training=True):
+    def act(self, state, is_training):
 
         self.is_training_mode = is_training
         state = torch.FloatTensor(state).to(self.args.device)
@@ -117,15 +116,6 @@ class Agent:
         self.memory.deleteBuffer()
         self.policy_old.load_state_dict(self.policy.state_dict())
 
-        wandb.log({'Advantage' : np.mean(self.meta_data['Advantage'])})
-        wandb.log({'Entropy' :np.mean(self.meta_data['Entropy'])})
-        wandb.log({'TD': np.mean(self.meta_data['TD'])})
-        wandb.log({'Critic_Loss': np.mean(self.meta_data['Critic_Loss'])})
-        wandb.log({'KL': np.mean(self.meta_data['KL'])})
-        wandb.log({'Policy_Loss': np.mean(self.meta_data['Policy_Loss'])})
-        wandb.log({'Actor Learning Rate': self.policy_optimizer.param_groups[0]['lr']})
-        wandb.log({'Critic Learning Rate': self.policy_optimizer.param_groups[1]['lr']})
-
     def generalized_advantage_estimation(self, values, rewards, next_value, done):
         gae = 0
         returns = []
@@ -156,14 +146,8 @@ class Agent:
 if __name__ == "__main__":
     args = get_args()
 
-    if args.wandb_id:
-        wandb.init(id=args.wandb_id, resume="must")
-    else:
-        wandb.init(name=f"{args.test_id}_{args.complexity}_policy", config=args)
-
     agent = Agent(args)
-    wandb.watch(agent.policy, log_freq=100)
-
+   
     while True:
         if 'saved_buffer.pkl' in os.listdir():
             not_ready = True

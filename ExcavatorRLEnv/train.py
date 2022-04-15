@@ -15,7 +15,7 @@ from arguments import get_args
 if __name__ == "__main__":
 
     args = get_args()
-    is_training = args.is_training
+    is_training = True
 
     env = env(args)
     agent = Agent(args)
@@ -24,7 +24,7 @@ if __name__ == "__main__":
         wandb.init(id=args.wandb_id, resume="must")
         agent.load_weights()
     else:
-        wandb.init(name=f"{args.test_id}_{args.complexity}", config=args, settings=wandb.Settings(start_method="thread"))
+        wandb.init(name=f"{args.test_id}_{args.complexity}_{args.expert}", config=args, settings=wandb.Settings(start_method="thread"))
 
     agent.save_weights()
     eps_count = 0
@@ -48,7 +48,7 @@ if __name__ == "__main__":
             total_embedd_loss.append(penalty)
 
             if args.test_id == "Dynamic":
-                agent.save_eps(state, reward + 10 * penalty, action, done, state_)
+                agent.save_eps(state, reward * penalty, action, done, state_)
             elif args.test_id == "Dense":
                 agent.save_eps(state, reward, action, done, state_)
             else:
@@ -72,11 +72,11 @@ if __name__ == "__main__":
         wandb.log({'Avg. Torque (in %) last 100 Episode':np.mean(env.tor_avg[-100:])})
         wandb.log({'Avg. Power (in %) last 100 Episode':np.mean(env.pow_avg[-100:])})
         wandb.log({'Avg. Fuel Consumption (in %) last 100 Episode':np.mean(env.avg_fuel[-100:])})
-        wandb.log({'Average Collisions with environment last 100 episodes':np.mean(env.env_col[-100:])})
-        wandb.log({'Average Number of tennis balls knocked last 100 episodes':np.mean(env.knock_ball[-100:])})
-        wandb.log({'Average Number of poles touched last 100 episodes':np.mean(env.touch_pole[-100:])})
-        wandb.log({'Average Number of poles fell last 100 episodes':np.mean(env.fell_pole[-100:])})
-        wandb.log({'Average Number of equipment collisions last 100 episodes':np.mean(env.coll_equip[-100:])})
+        wandb.log({'Collisions with environment last 100 episodes':sum(env.env_col[-100:])})
+        wandb.log({'Number of tennis balls knocked last 100 episodes':sum(env.knock_ball[-100:])})
+        wandb.log({'Number of poles touched last 100 episodes':sum(env.touch_pole[-100:])})
+        wandb.log({'Number of poles fell last 100 episodes':sum(env.fell_pole[-100:])})
+        wandb.log({'Number of equipment collisions last 100 episodes':sum(env.coll_equip[-100:])})
 
         while 'saved_buffer.pkl' in os.listdir():
             continue

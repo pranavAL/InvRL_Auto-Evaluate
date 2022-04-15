@@ -25,8 +25,9 @@ def get_args():
     parser.add_argument('--wandb_id', type=str, default=None, help="Wandb ID")
 
     parser.add_argument('--is_training', default=1, type=int, help='1 for training and 0 for testing')
-    parser.add_argument('--steps_per_episode', default=246, type=int, help='Steps per Episode')
+    parser.add_argument('--steps_per_episode', default=300, type=int, help='Steps per Episode')
     parser.add_argument('--complexity', required=True, type=int, help='State the required complexity')
+    parser.add_argument('--expert', required=True, type=int, help='Select Your Expert')
    
     parser.add_argument('-sq','--seq_len', type=int, default=32, help="Sequence Length for input to LSTM")
     parser.add_argument('-bs','--batch_size', type=int, default=8, help="Batch Size")
@@ -41,7 +42,7 @@ def get_args():
     args = parser.parse_args()
     args.is_training = bool(args.is_training)
 
-    args.save_dir = os.path.join(args.save_dir, 'train', f"{args.test_id}_{args.complexity}")
+    args.save_dir = os.path.join(args.save_dir, 'train', f"{args.test_id}_{args.complexity}_{args.expert}")
     os.makedirs(args.save_dir, exist_ok=True)
 
     if 'saved_buffer.pkl' in os.listdir():

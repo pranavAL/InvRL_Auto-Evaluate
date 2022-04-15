@@ -30,9 +30,11 @@ class env():
         self.max_val = fd.loc[:,self.train_feats].max()
         self.min_val = fd.loc[:,self.train_feats].min()
         fd.loc[:,self.train_feats] = (fd.loc[:,self.train_feats] - self.min_val)/(self.max_val - self.min_val)               
+        self.experts = ['5f0f3da8b1a0e016c4054af3','5efb9aacbcf5631c14097d5d', '5efcee755503691934047938']
+        self.exp_values = fd.loc[fd["Session id"]==self.experts[self.args.expert], self.train_feats]
         
-        self.exp_values = fd.loc[fd["Session id"]=='5efb9aacbcf5631c14097d5d', self.train_feats]
-        
+        self.args.steps_per_episode = len(self.exp_values) - self.args.seq_len
+
         # Define the setup and scene file paths
         self.setup_file = 'Setup.vxc'
         self.content_file = f'C:\CM Labs\Vortex Construction Assets 21.1\\assets\Excavator\Scenes\ArcSwipe\EX_Arc_Swipe{args.complexity}.vxscene'
@@ -115,14 +117,7 @@ class env():
         if self.current_steps + 1 > self.args.steps_per_episode or self.is_complete:
             print("Episode over")
             done = True
-            self.knock_ball.append(self.ball_knock)
-            self.touch_pole.append(self.pole_touch)
-            self.fell_pole.append(self.pole_fell)
-            self.coll_equip.append(self.equip_coll)
-            self.env_col.append(self.coll_env)
-            self.tor_avg.append(np.mean(self.per_step_torque))
-            self.pow_avg.append(np.mean(self.per_step_power))
-            self.avg_fuel.append(np.mean(self.per_step_fuel))
+            self.store_logs()
         else:
             done = False
 
@@ -176,7 +171,7 @@ class env():
         self.goal_distance = dist(self.goal,self.BuckLinPos)
         reward =  1 - self.goal_distance/10.0
 
-        return states, reward, (1 - penalty)
+        return states, reward, penalty
 
     def get_heuristics(self):
         self.ball_knock = self.MetricsInterface.getOutputContainer()['Number of tennis balls knocked over by operator'].value
@@ -199,6 +194,16 @@ class env():
 
         self.goals = [self.goal1, self.goal2, self.goal3]
 
+    def store_logs(self):
+        self.knock_ball.append(self.ball_knock)
+        self.touch_pole.append(self.pole_touch)
+        self.fell_pole.append(self.pole_fell)
+        self.coll_equip.append(self.equip_coll)
+        self.env_col.append(self.coll_env)
+        self.tor_avg.append(np.mean(self.per_step_torque))
+        self.pow_avg.append(np.mean(self.per_step_power))
+        self.avg_fuel.append(np.mean(self.per_step_fuel))    
+
     def normalize(self, features):
         features = list(np.divide(np.subtract(np.array(features), np.array(self.min_val)),
                                   np.subtract(np.array(self.max_val), np.array(self.min_val))))
@@ -212,7 +217,8 @@ class env():
         novice = novice.unsqueeze(0).to(self.model.device)
         exp_embedd, _, _ = self.model.encoder(expert)
         nov_embedd, _, _ = self.model.encoder(novice)
-        penalty = torch.dist(exp_embedd.squeeze(), nov_embedd.squeeze(), 2)
+        penalty = torch.dist(exp_embedd.squeeze(), nov_embedd.squeeze(), 1)
+        penalty = 1 - penalty * 10
         return self.get_numpy(penalty)
 
     def load_scene(self):
