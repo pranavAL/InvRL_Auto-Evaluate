@@ -52,7 +52,8 @@ class CraneDatasetModule():
            maxm = max(df[f])
            df[f] = [np.random.randint(0,maxm) for _ in range(len(df))]
 
-        df.loc[:,train_feats] = (df.loc[:,train_feats] - fd.loc[:,train_feats].min())/(fd.loc[:,train_feats].max() - fd.loc[:,train_feats].min())
+        df.loc[:,train_feats] = (df.loc[:,train_feats] - fd.loc[:,train_feats].min())/(
+                                 fd.loc[:,train_feats].max() - fd.loc[:,train_feats].min())
 
         input = []
         pred = []
@@ -112,8 +113,8 @@ class Encoder(nn.Module):
         out = self.elu(self.fc1(out))
         mu, logvar = self.ls1(out), self.ls2(out)
         z_latent = self.reparameterize(mu, logvar)
-        z = self.elu(self.final(z_latent))
-        return z, mu, logvar, z_latent
+        z_hidden = self.elu(self.final(z_latent))
+        return z_latent, mu, logvar, z_hidden
 
 class Decoder(nn.Module):
     def __init__(self, n_features, fc_dim):
@@ -148,8 +149,8 @@ class LSTMPredictor(pl.LightningModule):
         self.save_hyperparameters()
 
     def forward(self, x, y_decod, is_train):
-        x, mu, logvar, _ = self.encoder(x)
-        hidden = (x, x)
+        x, mu, logvar, x_hidden  = self.encoder(x)
+        hidden = (x_hidden, x_hidden)
         output = []
 
         if is_train:
@@ -177,7 +178,7 @@ class LSTMPredictor(pl.LightningModule):
         rloss_pen = F.mse_loss(y_hat[:,:,3:], y_decod[:,:,3:])
         kld = -0.5 * torch.sum(1 + logvar -mu.pow(2) - logvar.exp())
        
-        loss = 0.2*rloss_mac + 0.99*rloss_pen + kld * self.beta
+        loss = rloss_mac + 10*rloss_pen + kld * self.beta
 
         self.log(f'{p_type}/recon_loss_machine', rloss_mac, on_epoch=True)
         self.log(f'{p_type}/recon_loss_penalty', rloss_pen, on_epoch=True)
