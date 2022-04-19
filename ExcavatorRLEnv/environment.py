@@ -30,7 +30,7 @@ class env():
         self.max_val = fd.loc[:,self.train_feats].max()
         self.min_val = fd.loc[:,self.train_feats].min()
         fd.loc[:,self.train_feats] = (fd.loc[:,self.train_feats] - self.min_val)/(self.max_val - self.min_val)               
-        self.experts = ['5f0f3da8b1a0e016c4054af3','5efb9aacbcf5631c14097d5d', '5efcee755503691934047938']
+        self.experts = ['5efb9aacbcf5631c14097d5d', '5efcee755503691934047938']
         self.exp_values = fd.loc[fd["Session id"]==self.experts[self.args.expert], self.train_feats]
         
         self.args.steps_per_episode = len(self.exp_values) - self.args.seq_len
@@ -64,7 +64,6 @@ class env():
         self.model.load_state_dict(torch.load(model_path))
         self.model.cuda()
         self.model.eval()
-        self.is_complete = False
 
         self.env_col = []
         self.knock_ball = []
@@ -78,7 +77,6 @@ class env():
     def reset(self):
         # Initialize Reward and Step Count
         self.reward = 0
-        self.thres_dist = 1.0
         self.current_steps = 0
         self.rewfeatures = []
         self.per_step_fuel = []
@@ -86,7 +84,6 @@ class env():
         self.per_step_torque = []
 
         self.load_scene()
-        self.initial_complexity = self.args.complexity
         self.get_goals()
         
         while len(self.rewfeatures) < self.args.seq_len:
@@ -108,13 +105,9 @@ class env():
 
         # Observations
         obs, reward, penalty = self._get_obs()
-
-        if self.goal_distance < self.thres_dist:
-            print(f"Reached Checkpoint: {self.initial_complexity}")
-            self.is_complete = True
-
+        
         # Done flag
-        if self.current_steps + 1 > self.args.steps_per_episode or self.is_complete:
+        if self.current_steps + 1 > self.args.steps_per_episode:
             print("Episode over")
             done = True
             self.store_logs()
@@ -148,7 +141,7 @@ class env():
         self.BuckAngPos = self.ControlInterface.getOutputContainer()['State | Actuator Bucket AngPosition'].value
         self.StickAngPos = self.ControlInterface.getOutputContainer()['State | Actuator Arm AngPosition'].value
 
-        self.goal = self.goals[self.initial_complexity]
+        self.goal = self.goals[self.args.complexity]
         self.get_heuristics()
         
         RewardVal = [self.EngAvgPow, self.EngTorAvg, self.fuelCons, self.ball_knock,
@@ -215,11 +208,11 @@ class env():
     def get_penalty(self, expert, novice):
         expert = expert.unsqueeze(0).to(self.model.device)
         novice = novice.unsqueeze(0).to(self.model.device)
-        exp_embedd, _, _ = self.model.encoder(expert)
-        nov_embedd, _, _ = self.model.encoder(novice)
-        penalty = torch.dist(exp_embedd.squeeze(), nov_embedd.squeeze(), 1)
-        penalty = 1 - penalty * 10
-        return self.get_numpy(penalty)
+        _, _, _, exp_embedd = self.model.encoder(expert)
+        _, _, _, nov_embedd = self.model.encoder(novice)
+        penalty = torch.dist(exp_embedd.squeeze(), nov_embedd.squeeze(), 2)
+        penalty = self.get_numpy(penalty)
+        return 10.0 - penalty
 
     def load_scene(self):
         # The first time we load the scene

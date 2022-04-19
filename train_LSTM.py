@@ -39,14 +39,18 @@ class CraneDatasetModule():
     def get_data(self, file_type):
 
         train_feats = ['Engine Average Power', 'Engine Torque Average', 'Fuel Consumption Rate Average', 
-                        'Number of tennis balls knocked over by operator','Number of equipment collisions', 'Number of poles that fell over',
-                        'Number of poles touched', 'Collisions with environment']
+                        'Number of tennis balls knocked over by operator','Number of equipment collisions', 
+                        'Number of poles that fell over', 'Number of poles touched', 'Collisions with environment']
 
         train_data_path = os.path.join("datasets",file_type)
         full_data_path = os.path.join("datasets", "features_to_train.csv")
         fd = pd.read_csv(full_data_path)
 
         df = pd.read_csv(train_data_path)
+
+        for f in train_feats[3:]:
+           maxm = max(df[f])
+           df[f] = [np.random.randint(0,maxm) for _ in range(len(df))]
 
         df.loc[:,train_feats] = (df.loc[:,train_feats] - fd.loc[:,train_feats].min())/(fd.loc[:,train_feats].max() - fd.loc[:,train_feats].min())
 
@@ -107,9 +111,9 @@ class Encoder(nn.Module):
         out = self.elu(self.fc(h_out))
         out = self.elu(self.fc1(out))
         mu, logvar = self.ls1(out), self.ls2(out)
-        z = self.reparameterize(mu, logvar)
-        z = self.elu(self.final(z))
-        return z, mu, logvar
+        z_latent = self.reparameterize(mu, logvar)
+        z = self.elu(self.final(z_latent))
+        return z, mu, logvar, z_latent
 
 class Decoder(nn.Module):
     def __init__(self, n_features, fc_dim):
@@ -144,7 +148,7 @@ class LSTMPredictor(pl.LightningModule):
         self.save_hyperparameters()
 
     def forward(self, x, y_decod, is_train):
-        x, mu, logvar = self.encoder(x)
+        x, mu, logvar, _ = self.encoder(x)
         hidden = (x, x)
         output = []
 

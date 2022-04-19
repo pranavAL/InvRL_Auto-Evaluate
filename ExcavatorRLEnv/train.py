@@ -17,21 +17,16 @@ if __name__ == "__main__":
     args = get_args()
     is_training = True
 
-    env = env(args)
+    wandb.init(name=f"{args.test_id}_{args.complexity}_{args.expert}", config=args)
+    
     agent = Agent(args)
-
-    if args.wandb_id:
-        wandb.init(id=args.wandb_id, resume="must")
-        agent.load_weights()
-    else:
-        wandb.init(name=f"{args.test_id}_{args.complexity}_{args.expert}", config=args, settings=wandb.Settings(start_method="thread"))
+    env = env(args)
 
     agent.save_weights()
-    eps_count = 0
     mean_embedd_loss = []
     mean_reward = []
 
-    while not env.is_complete:
+    for ep in range(500):
         env.render(active=False)
         state, _ = env.reset()
         print("New Episode Started")
@@ -59,7 +54,7 @@ if __name__ == "__main__":
             if done:
                 break
 
-        print(f"Complexity: {env.initial_complexity}  Distance Left: {env.goal_distance}")
+        print(f"Episode: {ep} Distance Left: {env.goal_distance}")
         print("Updating policy")
         
         agent.memory.saveBuffer()
@@ -67,16 +62,16 @@ if __name__ == "__main__":
         mean_reward.append(np.mean(total_reward))
         mean_embedd_loss.append(np.mean(total_embedd_loss))
 
-        wandb.log({'Avg. Total Reward last 100 episodes':np.mean(mean_reward[-100:])})
-        wandb.log({'Avg. Embedding Reward last 100 episodes':np.mean(mean_embedd_loss[-100:])})
-        wandb.log({'Avg. Torque (in %) last 100 Episode':np.mean(env.tor_avg[-100:])})
-        wandb.log({'Avg. Power (in %) last 100 Episode':np.mean(env.pow_avg[-100:])})
-        wandb.log({'Avg. Fuel Consumption (in %) last 100 Episode':np.mean(env.avg_fuel[-100:])})
-        wandb.log({'Collisions with environment last 100 episodes':sum(env.env_col[-100:])})
-        wandb.log({'Number of tennis balls knocked last 100 episodes':sum(env.knock_ball[-100:])})
-        wandb.log({'Number of poles touched last 100 episodes':sum(env.touch_pole[-100:])})
-        wandb.log({'Number of poles fell last 100 episodes':sum(env.fell_pole[-100:])})
-        wandb.log({'Number of equipment collisions last 100 episodes':sum(env.coll_equip[-100:])})
+        wandb.log({'Avg. Total Reward last 10 episodes':np.mean(mean_reward[-10:])})
+        wandb.log({'Avg. Embedding Reward last 10 episodes':np.mean(mean_embedd_loss[-10:])})
+        wandb.log({'Avg. Torque (in %) last 10 Episode':np.mean(env.tor_avg[-10:])})
+        wandb.log({'Avg. Power (in %) last 10 Episode':np.mean(env.pow_avg[-10:])})
+        wandb.log({'Avg. Fuel Consumption (in %) last 10 Episode':np.mean(env.avg_fuel[-10:])})
+        wandb.log({'Collisions with environment last 10 episodes':sum(env.env_col[-10:])})
+        wandb.log({'Number of tennis balls knocked last 10 episodes':sum(env.knock_ball[-10:])})
+        wandb.log({'Number of poles touched last 10 episodes':sum(env.touch_pole[-10:])})
+        wandb.log({'Number of poles fell last 10 episodes':sum(env.fell_pole[-10:])})
+        wandb.log({'Number of equipment collisions last 10 episodes':sum(env.coll_equip[-10:])})
 
         while 'saved_buffer.pkl' in os.listdir():
             continue
