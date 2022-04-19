@@ -1,5 +1,4 @@
 import os
-from typing import get_args
 import torch
 import wandb
 import warnings
@@ -38,8 +37,8 @@ class CraneDatasetModule():
 
     def get_data(self, file_type):
 
-        train_feats = ['Engine Average Power', 'Engine Torque Average', 'Fuel Consumption Rate Average', 
-                        'Number of tennis balls knocked over by operator','Number of equipment collisions', 
+        train_feats = ['Engine Average Power', 'Engine Torque Average', 'Fuel Consumption Rate Average',
+                        'Number of tennis balls knocked over by operator','Number of equipment collisions',
                         'Number of poles that fell over', 'Number of poles touched', 'Collisions with environment']
 
         train_data_path = os.path.join("datasets",file_type)
@@ -80,7 +79,7 @@ class CraneDatasetModule():
     def test_dataloader(self):
         test_dataset = CraneDataset(self.X_test, self.Y_test_recon)
         test_loader = DataLoader(test_dataset, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers, drop_last=True)
-    
+
         return test_loader
 
 class Encoder(nn.Module):
@@ -173,11 +172,11 @@ class LSTMPredictor(pl.LightningModule):
     def final_process(self, batch, p_type, is_train):
         x, y_decod = batch
         y_hat, mu, logvar = self(x, y_decod, is_train)
-        
+
         rloss_mac = F.mse_loss(y_hat[:,:,:3], y_decod[:,:,:3])
         rloss_pen = F.mse_loss(y_hat[:,:,3:], y_decod[:,:,3:])
         kld = -0.5 * torch.sum(1 + logvar -mu.pow(2) - logvar.exp())
-       
+
         loss = rloss_mac + 10*rloss_pen + kld * self.beta
 
         self.log(f'{p_type}/recon_loss_machine', rloss_mac, on_epoch=True)
