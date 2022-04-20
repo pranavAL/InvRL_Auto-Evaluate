@@ -55,7 +55,7 @@ train_feats = ['Engine Average Power', 'Engine Torque Average', 'Fuel Consumptio
                'Number of poles that fell over', 'Number of poles touched', 'Collisions with environment']
 
 for f in train_feats[3:]:
-   df[f] = [np.random.randint(0,5) for _ in range(len(df))]
+   df[f] = [np.random.randint(0,20) for _ in range(len(df))]
 
 df = normalize(df)
 
