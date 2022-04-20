@@ -31,7 +31,7 @@ class CraneDatasetModule():
         self.batch_size = batch_size
         self.num_workers = num_workers
 
-        self.X_train, self.Y_train_recon = self.get_data('train_df.csv')
+        self.X_train, self.Y_train_recon= self.get_data('train_df.csv')
         self.X_val, self.Y_val_recon = self.get_data('val_df.csv')
         self.X_test, self.Y_test_recon = self.get_data('test_df.csv')
 
@@ -48,8 +48,7 @@ class CraneDatasetModule():
         df = pd.read_csv(train_data_path)
 
         for f in train_feats[3:]:
-           maxm = max(df[f])
-           df[f] = [np.random.randint(0,maxm) for _ in range(len(df))]
+           df[f] = [np.random.randint(0,15) for _ in range(len(df))]
 
         df.loc[:,train_feats] = (df.loc[:,train_feats] - fd.loc[:,train_feats].min())/(
                                  fd.loc[:,train_feats].max() - fd.loc[:,train_feats].min())
@@ -112,8 +111,7 @@ class Encoder(nn.Module):
         out = self.elu(self.fc1(out))
         mu, logvar = self.ls1(out), self.ls2(out)
         z_latent = self.reparameterize(mu, logvar)
-        z_hidden = self.elu(self.final(z_latent))
-        return z_latent, mu, logvar, z_hidden
+        return z_latent, mu, logvar
 
 class Decoder(nn.Module):
     def __init__(self, n_features, fc_dim):
@@ -142,14 +140,16 @@ class LSTMPredictor(pl.LightningModule):
         self.max_epochs = epochs
         self.beta = beta
 
+        self.initial = nn.Linear(self.latent_spc,self.n_features)
         self.encoder = Encoder(n_features, latent_spc, fc_dim)
         self.decoder = Decoder(n_features, fc_dim)
 
         self.save_hyperparameters()
 
     def forward(self, x, y_decod, is_train):
-        x, mu, logvar, x_hidden  = self.encoder(x)
-        hidden = (x_hidden, x_hidden)
+        x, mu, logvar = self.encoder(x)
+        x = self.initial(x)
+        hidden = (x, x)
         output = []
 
         if is_train:
@@ -177,7 +177,7 @@ class LSTMPredictor(pl.LightningModule):
         rloss_pen = F.mse_loss(y_hat[:,:,3:], y_decod[:,:,3:])
         kld = -0.5 * torch.sum(1 + logvar -mu.pow(2) - logvar.exp())
 
-        loss = rloss_mac + 10*rloss_pen + kld * self.beta
+        loss = rloss_mac + rloss_pen + kld * self.beta
 
         self.log(f'{p_type}/recon_loss_machine', rloss_mac, on_epoch=True)
         self.log(f'{p_type}/recon_loss_penalty', rloss_pen, on_epoch=True)

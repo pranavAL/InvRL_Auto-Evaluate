@@ -11,14 +11,15 @@ args = get_args()
 model_path = os.path.join('save_model', args.model_path)
 df = pd.read_csv(os.path.join("datasets",'features_to_train.csv'))
 
-train_feats = ['Engine Average Power', 'Engine Torque Average', 'Fuel Consumption Rate Average', 
+train_feats = ['Engine Average Power', 'Engine Torque Average', 'Fuel Consumption Rate Average',
                'Number of tennis balls knocked over by operator','Number of equipment collisions', 'Number of poles that fell over',
                'Number of poles touched', 'Collisions with environment']
 
 full_data_path = os.path.join("datasets", "features_to_train.csv")
 fd = pd.read_csv(full_data_path)
 
-df.loc[:,train_feats] = (df.loc[:,train_feats] - fd.loc[:,train_feats].min())/(fd.loc[:,train_feats].max() - fd.loc[:,train_feats].min())
+df.loc[:,train_feats] = (df.loc[:,train_feats] - fd.loc[:,train_feats].min())/(
+                        fd.loc[:,train_feats].max() - fd.loc[:,train_feats].min())
 
 model = LSTMPredictor(
     n_features = args.n_features,
@@ -48,7 +49,7 @@ def get_embeddings(input, label):
 y_pred = []
 x_input = []
 sessions = df["Session id"].unique()
-feats = ['Avg. Power', 'Avg. Torque', 'Avg. Fuel Consmp.', 
+feats = ['Avg. Power', 'Avg. Torque', 'Avg. Fuel Consmp.',
         'Balls Knocked','Eqip. Collison', 'Poles fell',
         'Poles touched', 'Env. Collison']
 
