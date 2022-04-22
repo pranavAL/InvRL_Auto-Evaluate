@@ -208,10 +208,10 @@ class env():
     def get_penalty(self, expert, novice):
         expert = expert.unsqueeze(0).to(self.model.device)
         novice = novice.unsqueeze(0).to(self.model.device)
-        _, _, _, exp_embedd = self.model.encoder(expert)
-        _, _, _, nov_embedd = self.model.encoder(novice)
-        penalty = torch.dist(exp_embedd.squeeze(), nov_embedd.squeeze(), 2)
-        penalty = self.get_numpy(penalty)
+        _, mu1, _ = self.model.encoder(expert)
+        _, mu2, _ = self.model.encoder(novice)
+        penalty = torch.dist(mu1.squeeze(), mu2.squeeze(), 2)
+        penalty = self.get_numpy(penalty) * 1000
         return 10.0 - penalty
 
     def load_scene(self):

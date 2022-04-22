@@ -26,7 +26,7 @@ if __name__ == "__main__":
     mean_embedd_loss = []
     mean_reward = []
 
-    for ep in range(500):
+    for ep in range(1):
         env.render(active=False)
         state, _ = env.reset()
         print("New Episode Started")
@@ -73,18 +73,18 @@ if __name__ == "__main__":
         wandb.log({'Number of poles fell last 10 episodes':sum(env.fell_pole[-10:])})
         wandb.log({'Number of equipment collisions last 10 episodes':sum(env.coll_equip[-10:])})
 
-        while 'saved_buffer.pkl' in os.listdir():
-            continue
+        # while 'saved_buffer.pkl' in os.listdir():
+        #     continue
 
-        not_ready = True
-        agent = Agent(args)
+        # not_ready = True
+        # agent = Agent(args)
 
-        while not_ready:
-            try:
-                agent.load_weights()
-            except Exception as e:
-                not_ready = True
-            else:
-                not_ready = False
+        # while not_ready:
+        #     try:
+        #         agent.load_weights()
+        #     except Exception as e:
+        #         not_ready = True
+        #     else:
+        #         not_ready = False
 
     del env
