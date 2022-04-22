@@ -48,7 +48,7 @@ class CraneDatasetModule():
         df = pd.read_csv(train_data_path)
 
         for f in train_feats[3:]:
-           df[f] = [np.random.randint(0,15) for _ in range(len(df))]
+           df[f] = [np.random.randint(0,5) for _ in range(len(df))]
 
         df.loc[:,train_feats] = (df.loc[:,train_feats] - fd.loc[:,train_feats].min())/(
                                  fd.loc[:,train_feats].max() - fd.loc[:,train_feats].min())
