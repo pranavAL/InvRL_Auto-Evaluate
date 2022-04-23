@@ -5,9 +5,9 @@ import warnings
 import numpy as np
 import pandas as pd
 import torch.nn as nn
-from arguments import get_args
 import pytorch_lightning as pl
 import torch.nn.functional as F
+from vae_arguments import get_args
 from torch.utils.data import Dataset, DataLoader
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning import Trainer, seed_everything
@@ -26,8 +26,7 @@ class CraneDataset(Dataset):
         return self.X[index], self.Y_recon[index]
 
 class CraneDatasetModule():
-    def __init__(self, seq_len, batch_size, num_workers=2):
-        self.seq_len = seq_len
+    def __init__(self, batch_size, num_workers=2):
         self.batch_size = batch_size
         self.num_workers = num_workers
 
@@ -37,9 +36,8 @@ class CraneDatasetModule():
 
     def get_data(self, file_type):
 
-        train_feats = ['Engine Average Power', 'Engine Torque Average', 'Fuel Consumption Rate Average']
-                        # 'Number of tennis balls knocked over by operator','Number of equipment collisions',
-                        # 'Number of poles that fell over', 'Number of poles touched', 'Collisions with environment']
+        train_feats = ['Number of tennis balls knocked over by operator','Number of equipment collisions',
+                       'Number of poles that fell over', 'Number of poles touched', 'Collisions with environment']
 
         train_data_path = os.path.join("datasets",file_type)
         full_data_path = os.path.join("datasets", "features_to_train.csv")
@@ -47,17 +45,20 @@ class CraneDatasetModule():
 
         df = pd.read_csv(train_data_path)
 
+        for f in train_feats:
+           df[f] = [np.random.randint(0,20) for _ in range(len(df))]
+
         df.loc[:,train_feats] = (df.loc[:,train_feats] - fd.loc[:,train_feats].min())/(
                                  fd.loc[:,train_feats].max() - fd.loc[:,train_feats].min())
-
+                                
         input = []
         pred = []
         for sess in df['Session id'].unique():
             sess_feat = df.loc[df["Session id"]==sess,:]
-            for i in range(0,len(sess_feat)-self.seq_len):
-                input.append(list(sess_feat.iloc[i:i+self.seq_len,:][train_feats].values))
-                pred.append(list(sess_feat.iloc[i:i+self.seq_len,:][train_feats].values))
-
+            for i in range(0,len(sess_feat)):
+                input.append(list(sess_feat.iloc[i,:][train_feats].values))
+                pred.append(sum(list(sess_feat.iloc[i,:][train_feats].values)))
+        pred = pred / max(pred)
         return torch.tensor(input).float(), torch.tensor(pred).float()
 
     def train_dataloader(self):
@@ -85,17 +86,10 @@ class Encoder(nn.Module):
         self.latent_spc = latent_spc
         self.fc_dim =  fc_dim
 
-        self.lstm = nn.LSTM(input_size=self.n_features,
-                             hidden_size=self.n_features,
-                             batch_first=True,
-                             dropout=0.3)
-
         self.elu = nn.ELU()
         self.fc = nn.Linear(self.n_features, self.fc_dim)
-        self.fc1 = nn.Linear(self.fc_dim, self.fc_dim)
         self.ls1 = nn.Linear(self.fc_dim, self.latent_spc)
         self.ls2 = nn.Linear(self.fc_dim, self.latent_spc)
-        self.final = nn.Linear(self.latent_spc, self.n_features)
 
     def reparameterize(self, mu, logvar):
         std = torch.exp(0.5 * logvar)
@@ -103,77 +97,59 @@ class Encoder(nn.Module):
         return eps * std + mu
 
     def forward(self, x):
-        _, (h_out, _) = self.lstm(x)
-        out = self.elu(self.fc(h_out))
-        out = self.elu(self.fc1(out))
+        out = self.elu(self.fc(x))
         mu, logvar = self.ls1(out), self.ls2(out)
         z_latent = self.reparameterize(mu, logvar)
         return z_latent, mu, logvar
 
 class Decoder(nn.Module):
-    def __init__(self, n_features, fc_dim):
+    def __init__(self, n_features, latent_spc, fc_dim):
         super(Decoder, self).__init__()
         self.n_features = n_features
         self.fc_dim =  fc_dim
+        self.latent_spc = latent_spc
 
-        self.lstm = nn.LSTM(input_size=self.n_features,
-                             hidden_size=self.n_features,
-                             batch_first=True,
-                             dropout=0.3)
+        self.elu = nn.ELU()
+        self.fc = nn.Linear(self.latent_spc, self.fc_dim)
+        self.final = nn.Linear(self.fc_dim, 1)
 
-    def forward(self, inp, hidden):
-        out, hidden = self.lstm(inp, hidden)
-        return out, hidden
+    def forward(self, inp):
+        out = self.elu(self.fc(inp))
+        out = self.final(out)
+        return out
 
-class LSTMPredictor(pl.LightningModule):
-    def __init__(self, n_features, fc_dim, seq_len, batch_size, latent_spc, learning_rate, epochs, beta):
-        super(LSTMPredictor,self).__init__()
+class SafetyPredictor(pl.LightningModule):
+    def __init__(self, n_features, fc_dim, batch_size, latent_spc, learning_rate, epochs, beta):
+        super(SafetyPredictor,self).__init__()
         self.n_features = n_features
         self.fc_dim = fc_dim
-        self.seq_len = seq_len
         self.batch_size = batch_size
         self.learning_rate = learning_rate
         self.latent_spc = latent_spc
         self.max_epochs = epochs
         self.beta = beta
 
-        self.initial = nn.Linear(self.latent_spc,self.n_features)
         self.encoder = Encoder(n_features, latent_spc, fc_dim)
-        self.decoder = Decoder(n_features, fc_dim)
+        self.decoder = Decoder(n_features, latent_spc, fc_dim)
 
         self.save_hyperparameters()
 
-    def forward(self, x, y_decod, is_train):
+    def forward(self, x):
         x, mu, logvar = self.encoder(x)
-        x = self.initial(x)
-        hidden = (x, x)
-        output = []
+        out = self.decoder(x)
 
-        if is_train:
-            out, _ = self.decoder(y_decod, hidden)
-            output = out
-        else:
-            batch_size = y_decod.size()[0]
-            out = y_decod[:,0,:].unsqueeze(1)
-            for _ in range(self.seq_len):
-                out, hidden = self.decoder(out, hidden)
-                output.append(out)
-            output = torch.stack(output, dim=0)
-            output = torch.reshape(output, (batch_size, self.seq_len, self.n_features))
-
-        return output, mu, logvar
+        return out, mu, logvar
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.learning_rate)
 
-    def final_process(self, batch, p_type, is_train):
+    def final_process(self, batch, p_type):
         x, y_decod = batch
-        y_hat, mu, logvar = self(x, y_decod, is_train)
+        y_hat, mu, logvar = self(x)
 
         rloss = F.mse_loss(y_hat, y_decod)
         kld = -0.5 * torch.sum(1 + logvar -mu.pow(2) - logvar.exp())
-
-        loss = rloss + kld * self.beta
+        loss = 10 * rloss + kld * self.beta * 0.1
 
         self.log(f'{p_type}/recon_loss', rloss, on_epoch=True)
         self.log(f'{p_type}/kld', kld, on_epoch=True)
@@ -182,15 +158,15 @@ class LSTMPredictor(pl.LightningModule):
         return loss
 
     def training_step(self, batch, batch_idx):
-        loss = self.final_process(batch, 'train', is_train=True)
+        loss = self.final_process(batch, 'train')
         return loss
 
     def validation_step(self, batch, batch_idx):
-        loss = self.final_process(batch, 'val', is_train=False)
+        loss = self.final_process(batch, 'val')
         return loss
 
     def test_step(self, batch, batch_idx):
-        loss = self.final_process(batch, 'test', is_train=False)
+        loss = self.final_process(batch, 'test')
         return loss
 
 if __name__ == "__main__":
@@ -198,12 +174,11 @@ if __name__ == "__main__":
     args = get_args()
 
     dm = CraneDatasetModule(
-        seq_len = 32,
-        batch_size = args.batch_size
+        batch_size = args.batch_size_safety
     )
 
-    model_path = os.path.join('save_model',f"lstm_vae_dynamic.pth")
-    wandb.init(name = f"32seq_lstm_vae_Recon_w_class")
+    model_path = os.path.join('save_model',f"vae_recon_safety.pth")
+    wandb.init(name = f"vae_recon_safety")
 
     train_loader = dm.train_dataloader()
     val_loader = dm.val_dataloader()
@@ -211,12 +186,11 @@ if __name__ == "__main__":
 
     seed_everything(1)
 
-    model = LSTMPredictor(
-        n_features = 3,
-        fc_dim = args.fc_dim,
-        seq_len = 32,
-        batch_size = args.batch_size,
-        latent_spc = 8,
+    model = SafetyPredictor(
+        n_features = args.n_features_safety,
+        fc_dim = args.fc_dim_safety,
+        batch_size = args.batch_size_safety,
+        latent_spc = args.latent_spc_safety,
         learning_rate = args.learning_rate,
         epochs = args.max_epochs,
         beta = args.beta

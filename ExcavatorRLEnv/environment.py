@@ -1,14 +1,17 @@
 import warnings
 warnings.filterwarnings('ignore')
 
+import os
+import torch
 import Vortex
 import vxatp3
 import numpy as np
-import torch
-import os
 import pandas as pd
-from train_LSTM import LSTMPredictor
 from math import dist
+
+from model_dynamics import DynamicsPredictor
+from model_infractions import SafetyPredictor
+from vae_arguments import get_args as vae_args
 
 SUB_STEPS = 5
 class env():
@@ -19,21 +22,28 @@ class env():
         self.scene = None
         self.interface = None
         self.args = args
-        
+
         full_data_path = os.path.join("..","datasets","features_to_train.csv")
         fd = pd.read_csv(full_data_path)
-        self.train_feats = ['Engine Average Power', 'Engine Torque Average', 'Fuel Consumption Rate Average', 
-                            'Number of tennis balls knocked over by operator', 'Number of equipment collisions', 
-                            'Number of poles that fell over', 'Number of poles touched', 
-                            'Collisions with environment']
-        
-        self.max_val = fd.loc[:,self.train_feats].max()
-        self.min_val = fd.loc[:,self.train_feats].min()
-        fd.loc[:,self.train_feats] = (fd.loc[:,self.train_feats] - self.min_val)/(self.max_val - self.min_val)               
+        self.dyna_feats = ['Engine Average Power', 'Engine Torque Average',
+                           'Fuel Consumption Rate Average']
+
+        self.safe_feats = ['Number of tennis balls knocked over by operator',
+                           'Number of equipment collisions',
+                           'Number of poles that fell over', 'Number of poles touched',
+                           'Collisions with environment']
+
+        self.max_val = fd.loc[:,self.dyna_feats+self.safe_feats].max()
+        self.min_val = fd.loc[:,self.dyna_feats+self.safe_feats].min()
+
+        fd.loc[:,self.dyna_feats+self.safe_feats] = (fd.loc[:,self.dyna_feats+self.safe_feats]
+                                                    - self.min_val)/(self.max_val - self.min_val)
+
         self.experts = ['5efb9aacbcf5631c14097d5d', '5efcee755503691934047938']
-        self.exp_values = fd.loc[fd["Session id"]==self.experts[self.args.expert], self.train_feats]
-        
-        self.args.steps_per_episode = len(self.exp_values) - self.args.seq_len
+        self.exp_values = fd.loc[fd["Session id"]==self.experts[self.args.expert],
+                                self.dyna_feats+self.safe_feats]
+
+        self.args.steps_per_episode = len(self.exp_values)
 
         # Define the setup and scene file paths
         self.setup_file = 'Setup.vxc'
@@ -48,22 +58,37 @@ class env():
         self.display.setName('3D Display')
         self.display.getInput(Vortex.DisplayICD.kPlacement).setValue(Vortex.VxVector4(500, 500, 1280, 720))
 
-        model_path = os.path.join('..','save_model', self.args.model_path)
+        dynamics_model_path = os.path.join('..','save_model', 'lstm_vae_dynamic.pth')
+        safe_model_path = os.path.join('..','save_model', 'vae_recon_safety.pth')
 
-        self.model = LSTMPredictor(
-            n_features = self.args.n_features,
-            fc_dim = self.args.fc_dim,
-            seq_len = self.args.seq_len,
-            batch_size = self.args.batch_size,
-            latent_spc = self.args.latent_spc,
-            learning_rate = self.args.learning_rate,
-            epochs = self.args.max_epochs,
-            beta = self.args.beta
+        self.dynamicsmodel = DynamicsPredictor(
+            n_features = vae_args.n_features_dynamics,
+            fc_dim = vae_args.fc_dim_dynamics,
+            seq_len = vae_args.seq_len_dynamics,
+            batch_size = vae_args.batch_size_dynamics,
+            latent_spc = vae_args.latent_spc_dynamics,
+            learning_rate = vae_args.learning_rate,
+            epochs = vae_args.max_epochs,
+            beta = vae_args.beta
         )
 
-        self.model.load_state_dict(torch.load(model_path))
-        self.model.cuda()
-        self.model.eval()
+        self.safetymodel = SafetyPredictor(
+            n_features = vae_args.n_features_safety,
+            fc_dim = vae_args.fc_dim_safety,
+            batch_size = vae_args.batch_size_safety,
+            latent_spc = vae_args.latent_spc_safety,
+            learning_rate = vae_args.learning_rate,
+            epochs = vae_args.max_epochs,
+            beta = vae_args.beta
+        )
+
+        self.dynamics_model.load_state_dict(torch.load(dynamics_model_path))
+        self.dynamics_model.cuda()
+        self.dynamics_model.eval()
+
+        self.safe_model.load_state_dict(torch.load(safe_model_path))
+        self.safe_model.cuda()
+        self.safe_model.eval()
 
         self.env_col = []
         self.knock_ball = []
@@ -77,17 +102,17 @@ class env():
     def reset(self):
         # Initialize Reward and Step Count
         self.reward = 0
+        self.dynfeat = []
+        self.saffeat = []
         self.current_steps = 0
-        self.rewfeatures = []
         self.per_step_fuel = []
         self.per_step_power = []
         self.per_step_torque = []
 
         self.load_scene()
         self.get_goals()
-        
-        while len(self.rewfeatures) < self.args.seq_len:
-            state, reward, _ = self._get_obs()
+
+        state, reward, _, _ = self._get_obs()
 
         return state, reward
 
@@ -104,8 +129,8 @@ class env():
             self.application.update()
 
         # Observations
-        obs, reward, penalty = self._get_obs()
-        
+        obs, reward, dyna_penalty, safe_penalty = self._get_obs()
+
         # Done flag
         if self.current_steps + 1 > self.args.steps_per_episode:
             print("Episode over")
@@ -116,11 +141,12 @@ class env():
 
         self.current_steps += 1
 
-        return obs, reward, penalty, done, {}
+        return obs, reward, dyna_penalty, safe_penalty, done, {}
 
     def _get_obs(self):
         reward = 0
-        penalty = 0
+        dyna_penalty = 0
+        safe_penalty = 0
 
         self.SwingLinPos = self.ControlInterface.getOutputContainer()['State | Actuator Swing LinPosition'].value
         self.BoomLinPos = self.ControlInterface.getOutputContainer()['State | Actuator Boom LinPosition'].value
@@ -143,18 +169,23 @@ class env():
 
         self.goal = self.goals[self.args.complexity]
         self.get_heuristics()
-        
+
         RewardVal = [self.EngAvgPow, self.EngTorAvg, self.fuelCons, self.ball_knock,
                      self.equip_coll, self.pole_fell, self.pole_touch, self.coll_env]
 
         RewardVal = self.normalize(RewardVal)
 
-        self.rewfeatures.append(RewardVal)
+        self.dynfeat.append(RewardVal[:3])
+        self.saffeat.append(RewardVal[3:])
 
-        if len(self.rewfeatures) >= self.args.seq_len:
-            exp_input = torch.tensor(list(self.exp_values.iloc[self.current_steps:self.current_steps+self.args.seq_len,:][self.train_feats].values)).float()
-            pol_input = torch.tensor(self.rewfeatures[self.current_steps:self.current_steps+self.args.seq_len]).float()
-            penalty = self.get_penalty(exp_input, pol_input)                           
+        if len(self.rewfeatures) >= vae_args.seq_len:
+            exp_dyn = torch.tensor(list(self.exp_values.iloc[-vae_args.seq_len:,:][self.dyna_feats].values)).float()
+            pol_dyn = torch.tensor(self.dynfeat[-vae_args.seq_len:]).float()
+            dyna_penalty = self.get_penalty(exp_dyn, pol_dyn)
+
+        exp_saf = torch.tensor(list(self.exp_values.iloc[self.current_steps,:][self.safe_feats].values)).float()
+        pol_saf = torch.tensor(list(self.saffeat[self.current_steps])).float()
+        saf_penalty = self.get_penalty(exp_saf, pol_saf)
 
         states = np.array([*self.SwingLinPos, *self.BoomLinPos, *self.BuckLinPos, *self.StickLinPos,
                            self.SwingAngVel, self.BoomAngvel, self.BuckAngvel, self.StickAngvel,
@@ -164,7 +195,7 @@ class env():
         self.goal_distance = dist(self.goal,self.BuckLinPos)
         reward =  1 - self.goal_distance/10.0
 
-        return states, reward, penalty
+        return states, reward, dyna_penalty, saf_penalty
 
     def get_heuristics(self):
         self.ball_knock = self.MetricsInterface.getOutputContainer()['Number of tennis balls knocked over by operator'].value
@@ -195,21 +226,21 @@ class env():
         self.env_col.append(self.coll_env)
         self.tor_avg.append(np.mean(self.per_step_torque))
         self.pow_avg.append(np.mean(self.per_step_power))
-        self.avg_fuel.append(np.mean(self.per_step_fuel))    
+        self.avg_fuel.append(np.mean(self.per_step_fuel))
 
     def normalize(self, features):
         features = list(np.divide(np.subtract(np.array(features), np.array(self.min_val)),
                                   np.subtract(np.array(self.max_val), np.array(self.min_val))))
-        return features                            
-    
+        return features
+
     def get_numpy(self, x):
         return x.squeeze().to('cpu').detach().numpy()
 
-    def get_penalty(self, expert, novice):
-        expert = expert.unsqueeze(0).to(self.model.device)
-        novice = novice.unsqueeze(0).to(self.model.device)
-        z1, _, _ = self.model.encoder(expert)
-        z2, _, _ = self.model.encoder(novice)
+    def get_penalty(self, expert, novice, model):
+        expert = expert.unsqueeze(0).to(model.device)
+        novice = novice.unsqueeze(0).to(model.device)
+        z1, _, _ = model.encoder(expert)
+        z2, _, _ = model.encoder(novice)
         penalty = torch.dist(z1.squeeze(), z2.squeeze(), 2)
         penalty = self.get_numpy(penalty)
         return 1.0 - penalty
@@ -251,7 +282,7 @@ class env():
             self.application.update()
 
         self.ControlInterface.getInputContainer()['Control | Engine Start Switch'].value = True
-    
+
     def waitForNbKeyFrames(self, expectedNbKeyFrames, application, keyFrameList):
         maxNbIter = 100
         nbIter = 0
@@ -259,7 +290,7 @@ class env():
             if not application.update():
                 break
             ++nbIter
-    
+
     def render(self, active=True):
 
         # Find current list of displays
@@ -278,4 +309,4 @@ class env():
 
     def __del__(self):
         # It is always a good idea to destroy the VxApplication when we are done with it.
-        self.application = None        
+        self.application = None

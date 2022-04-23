@@ -5,9 +5,9 @@ import warnings
 import numpy as np
 import pandas as pd
 import torch.nn as nn
-from arguments import get_args
 import pytorch_lightning as pl
 import torch.nn.functional as F
+from vae_arguments import get_args
 from torch.utils.data import Dataset, DataLoader
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning import Trainer, seed_everything
@@ -38,8 +38,6 @@ class CraneDatasetModule():
     def get_data(self, file_type):
 
         train_feats = ['Engine Average Power', 'Engine Torque Average', 'Fuel Consumption Rate Average']
-                        # 'Number of tennis balls knocked over by operator','Number of equipment collisions',
-                        # 'Number of poles that fell over', 'Number of poles touched', 'Collisions with environment']
 
         train_data_path = os.path.join("datasets",file_type)
         full_data_path = os.path.join("datasets", "features_to_train.csv")
@@ -125,9 +123,9 @@ class Decoder(nn.Module):
         out, hidden = self.lstm(inp, hidden)
         return out, hidden
 
-class LSTMPredictor(pl.LightningModule):
+class DynamicsPredictor(pl.LightningModule):
     def __init__(self, n_features, fc_dim, seq_len, batch_size, latent_spc, learning_rate, epochs, beta):
-        super(LSTMPredictor,self).__init__()
+        super(DynamicsPredictor,self).__init__()
         self.n_features = n_features
         self.fc_dim = fc_dim
         self.seq_len = seq_len
@@ -198,8 +196,8 @@ if __name__ == "__main__":
     args = get_args()
 
     dm = CraneDatasetModule(
-        seq_len = 32,
-        batch_size = args.batch_size
+        seq_len = args.seq_len_dynamics,
+        batch_size = args.batch_size_dynamics
     )
 
     model_path = os.path.join('save_model',f"lstm_vae_dynamic.pth")
@@ -211,12 +209,12 @@ if __name__ == "__main__":
 
     seed_everything(1)
 
-    model = LSTMPredictor(
-        n_features = 3,
-        fc_dim = args.fc_dim,
-        seq_len = 32,
-        batch_size = args.batch_size,
-        latent_spc = 8,
+    model = DynamicsPredictor(
+        n_features = args.n_features_dynamics,
+        fc_dim = args.fc_dim_dynamics,
+        seq_len = args.seq_len_dynamics,
+        batch_size = args.batch_size_dynamics,
+        latent_spc = args.latent_spc_dynamics,
         learning_rate = args.learning_rate,
         epochs = args.max_epochs,
         beta = args.beta

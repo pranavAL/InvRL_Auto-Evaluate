@@ -17,6 +17,9 @@ def get_args():
     parser.add_argument('--lr_crit', type=float, default=1e-3, metavar='G', help='Learning Rate Critic')
     parser.add_argument('--lam', type=float, default=0.95, metavar='G', help='GAE Factor')
     parser.add_argument('--gamma', type=float, default=0.99, metavar='G', help='Discount Factor')
+    parser.add_argument('--state_dim', type=int, default=19, metavar='G', help='Dimension of State Space')
+    parser.add_argument('--action_dim', type=int, default=4, metavar='G', help='Dimension of Action Space')
+    parser.add_argument('--std', type=float, default=0.6, metavar='G', help='Standard Deviation for Policy Exploration')
 
     parser.add_argument('--seed', type=int, metavar='N', default=0, help='random seed (default: 0)')
     parser.add_argument('--save-dir', type=str, default='saved_models', help='the path to save the models')
@@ -28,16 +31,6 @@ def get_args():
     parser.add_argument('--steps_per_episode', default=300, type=int, help='Steps per Episode')
     parser.add_argument('--complexity', required=True, type=int, help='State the required complexity')
     parser.add_argument('--expert', required=True, type=int, help='Select Your Expert')
-   
-    parser.add_argument('-sq','--seq_len', type=int, default=2, help="Sequence Length for input to LSTM")
-    parser.add_argument('-bs','--batch_size', type=int, default=8, help="Batch Size")
-    parser.add_argument('-lr','--learning_rate', type=float, default=0.0003, help="Neural Network Learning Rate")
-    parser.add_argument('-mp', '--model_path', type=str, default='lstm_vae.pth', help="Saved model path")
-    parser.add_argument('-ls','--latent_spc', type=int,default=2, help='Size of Latent Space')
-    parser.add_argument('-fcd','--fc_dim', type=int, default=64, help="Number of FC Nodes")
-    parser.add_argument('-nf','--n_features', type=int, default=8, help="Length of feature for each sample")
-    parser.add_argument('-me','--max_epochs', type=int, default=1000, help="Number of epchs to train")
-    parser.add_argument('-kldc','--beta', type=float, default=0.001, help='weighting factor of KLD')
 
     args = parser.parse_args()
     args.is_training = bool(args.is_training)
@@ -50,7 +43,7 @@ def get_args():
 
     use_cuda = torch.cuda.is_available()
     args.device = torch.device("cuda" if use_cuda else "cpu")
-    
+
     torch.manual_seed(1)
     np.random.seed(1)
     random.seed(1)

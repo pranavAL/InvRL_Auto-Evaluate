@@ -15,10 +15,9 @@ class Agent:
         self.PPO_epochs = args.ppo_epochs
         self.lr_actor = args.lr_act
         self.lr_critic = args.lr_crit
-        self.is_training_mode = True
-        self.state_dim = 19
-        self.action_dim = 4
-        self.action_std = 0.6
+        self.state_dim = args.state_dim
+        self.action_dim = args.action_dim
+        self.action_std = args.std
         self.gamma = args.gamma
         self.lam = args.lam
         self.args = args
@@ -82,11 +81,10 @@ class Agent:
 
     def act(self, state, is_training):
 
-        self.is_training_mode = is_training
         state = torch.FloatTensor(state).to(self.args.device)
         action_mean, _ = self.policy_old(state)
 
-        if self.is_training_mode:
+        if is_training:
             distribution = MultivariateNormal(action_mean, self.cov_mat)
             action = distribution.sample().float().to(self.args.device)
             return np.clip(action.cpu().numpy(), -1, 1)
@@ -148,7 +146,7 @@ if __name__ == "__main__":
     args = get_args()
 
     agent = Agent(args)
-   
+
     while True:
         if 'saved_buffer.pkl' in os.listdir():
             not_ready = True

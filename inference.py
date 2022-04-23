@@ -2,9 +2,9 @@ import os
 import torch
 import numpy as np
 import pandas as pd
-from arguments import get_args
 import matplotlib.pyplot as plt
-from train_LSTM import LSTMPredictor
+from vae_arguments import get_args
+from model_infractions import SafetyPredictor
 
 def normalize(df):
     df.loc[:,train_feats] = (df.loc[:,train_feats] - df.loc[:,train_feats].min())/(
@@ -14,11 +14,10 @@ def normalize(df):
 def get_numpy(x):
     return x.squeeze().to('cpu').detach().numpy()
 
-def get_embeddings(data, label):
+def get_embeddings(data):
     data = data.unsqueeze(0).to(model.device)
-    label = label.unsqueeze(0).to(model.device)
     z, mu, _ = model.encoder(data)
-    embedd = get_numpy(mu)
+    embedd = get_numpy(z)
     return list(embedd)
 
 def save_meta_data(df):
@@ -27,44 +26,43 @@ def save_meta_data(df):
     for i, sess in enumerate(df["Session id"].unique()):
         print(f"Session: {i}")
         sess_feat = df.loc[df["Session id"]==sess,:]
-        terminate = args.seq_len
-        for i in range(0,len(sess_feat)-terminate):
-            train = list(sess_feat.iloc[i:i+args.seq_len,:][train_feats].values)
-            init_label = list(sess_feat.iloc[i:i+args.seq_len,:][train_feats].values)
-            penlt_feat = sess_feat.iloc[i:i+args.seq_len,:][train_feats[3:]].values.sum()
-            embedd = get_embeddings(torch.tensor(train).float(), torch.tensor(init_label).float())
+        for i in range(0,len(sess_feat)):
+            train = list(sess_feat.iloc[i,:][train_feats].values)
+            penlt_feat = sum(list(map(lambda x: x * 20, list(sess_feat.iloc[i,:][train_feats].values))))
+            embedd = get_embeddings(torch.tensor(train).float())
             meta_data.loc[len(meta_data)] = [sess, embedd[0], embedd[1], penlt_feat]
 
-    meta_data.to_csv(f"outputs/{model_name}")
     return meta_data
 
 def animate(meta_data):
 
-    plt.scatter(meta_data.X, meta_data.Y, s=50, c=meta_data['infractions'], cmap="RdBu")
-    plt.colorbar()
+    plt.axis('off')
+    plt.tick_params(axis='both', left='off', top='off', right='off', bottom='off',
+                    labelleft='off', labeltop='off', labelright='off', labelbottom='off')
+    plt.scatter(meta_data.X, meta_data.Y, s=50, c=meta_data['infractions'], cmap="jet")
+    plt.colorbar(label="Total Infractions")
+    plt.savefig(f"outputs/vae_safety.png", dpi=100)
     plt.show()
 
 args = get_args()
-model_name = f"{args.model_path.split('.')[0]}"
-model_path = os.path.join('save_model', args.model_path)
+
+model_path = os.path.join('save_model', 'vae_recon_safety.pth')
 
 df = pd.read_csv(os.path.join("datasets","features_to_train.csv"))
 
-train_feats = ['Engine Average Power', 'Engine Torque Average', 'Fuel Consumption Rate Average',
-               'Number of tennis balls knocked over by operator','Number of equipment collisions',
+train_feats = ['Number of tennis balls knocked over by operator','Number of equipment collisions',
                'Number of poles that fell over', 'Number of poles touched', 'Collisions with environment']
 
-for f in train_feats[3:]:
+for f in train_feats:
    df[f] = [np.random.randint(0,20) for _ in range(len(df))]
 
 df = normalize(df)
 
-model = LSTMPredictor(
-    n_features = args.n_features,
-    fc_dim = args.fc_dim,
-    seq_len = args.seq_len,
-    batch_size = args.batch_size,
-    latent_spc = args.latent_spc,
+model = SafetyPredictor(
+    n_features = args.n_features_safety,
+    fc_dim = args.fc_dim_safety,
+    batch_size = args.batch_size_safety,
+    latent_spc = args.latent_spc_safety,
     learning_rate = args.learning_rate,
     epochs = args.max_epochs,
     beta = args.beta
@@ -77,5 +75,4 @@ model.eval()
 with torch.no_grad():
 
     meta_data = save_meta_data(df)
-    print(meta_data.describe())
     animate(meta_data)
