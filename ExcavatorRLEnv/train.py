@@ -18,12 +18,13 @@ if __name__ == "__main__":
     is_training = True
 
     wandb.init(name=f"{args.test_id}_{args.complexity}_{args.expert}", config=args)
-    
+
     agent = Agent(args)
     env = env(args)
 
     agent.save_weights()
-    mean_embedd_loss = []
+    mean_dyna_loss = []
+    mean_penalty_loss = []
     mean_reward = []
 
     for ep in range(500):
@@ -32,18 +33,22 @@ if __name__ == "__main__":
         print("New Episode Started")
         done = False
         total_reward = []
-        total_embedd_loss = []
+        total_dyna_loss = []
+        total_penalty_loss = []
 
         while not done:
 
             action = agent.act(state, is_training)
-            state_, reward, penalty, done, _ = env.step(list(action))
+            state_, reward, dyna_penalty, safe_penalty, done, _ = env.step(list(action))
+            print(dyna_penalty)
+            print(safe_penalty)
 
             total_reward.append(reward)
-            total_embedd_loss.append(penalty)
+            total_dyna_loss.append(dyna_penalty)
+            total_penalty_loss.append(safe_penalty)
 
             if args.test_id == "Dynamic":
-                agent.save_eps(state, reward * penalty, action, done, state_)
+                agent.save_eps(state, reward + dyna_penalty + safe_penalty, action, done, state_)
             elif args.test_id == "Dense":
                 agent.save_eps(state, reward, action, done, state_)
             else:
@@ -56,14 +61,16 @@ if __name__ == "__main__":
 
         print(f"Episode: {ep} Distance Left: {env.goal_distance}")
         print("Updating policy")
-        
+
         agent.memory.saveBuffer()
-        
+
         mean_reward.append(np.mean(total_reward))
-        mean_embedd_loss.append(np.mean(total_embedd_loss))
+        mean_dyna_loss.append(np.mean(total_dyna_loss))
+        mean_penalty_loss.append(np.mean(total_penalty_loss))
 
         wandb.log({'Avg. Total Reward last 10 episodes':np.mean(mean_reward[-10:])})
-        wandb.log({'Avg. Embedding Reward last 10 episodes':np.mean(mean_embedd_loss[-10:])})
+        wandb.log({'Avg. Dynamic Reward last 10 episodes':np.mean(mean_dyna_loss[-10:])})
+        wandb.log({'Avg. Penalty Reward last 10 episodes':np.mean(mean_penalty_loss[-10:])})
         wandb.log({'Avg. Torque (in %) last 10 Episode':np.mean(env.tor_avg[-10:])})
         wandb.log({'Avg. Power (in %) last 10 Episode':np.mean(env.pow_avg[-10:])})
         wandb.log({'Avg. Fuel Consumption (in %) last 10 Episode':np.mean(env.avg_fuel[-10:])})
