@@ -15,4 +15,4 @@ outputs
 .log
 ExcavatorRLEnv/*.log
 InvRL_Auto-Evaluate
-Documents/
+/Documents/
