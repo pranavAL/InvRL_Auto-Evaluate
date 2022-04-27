@@ -7,7 +7,7 @@
 Official code repository for the paper 
 ***Learning Reward Functions using Expert Demonstrations for Crane Automation*** by [Pranav Agarwal](https://pranaval.github.io/).
 
-# Installations
+# Installation
 ## Simulator
 * We use [Vortex Studio 2021a](https://vortexstudio.atlassian.net/wiki/spaces/VSD21A/overview) for collecting the dataset and further training the reinforcement learning policy. 
 * All files for installing the simulator is availaible [here](https://drive.google.com/drive/folders/1nCHXmvMzyiH3GqQtNNYV-WuR99p5xqDD). 
@@ -40,3 +40,10 @@ wandb login
 🔴**IMPORTANT**🔴
 
 These are strict requirements. Vortex tools used in this work is not supported on Linux and its graphics for this paper is currently tested only on the above configurations.
+
+# Post-Installation
+The default scenes and mechanism of the crane are manipulated to match the requirement of this work.
+```
+copy scenes\*.vxscene C:\CM Labs\Vortex Construction Assets 21.1\assets\Excavator\Scenes\ArcSwipe
+copy scenes\*.vxmechanism  C:\CM Labs\Vortex Construction Assets 21.1\assets\Excavator\Mechanisms\Excavator
+```
