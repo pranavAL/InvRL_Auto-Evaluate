@@ -16,7 +16,7 @@ Official code repository for the paper
 
 ## Code
 * Install [Anaconda](https://www.anaconda.com/products/distribution#Downloads).
-
+* This repository is required to be cloned, further creating the conda environment.
 ```
 git clone https://github.com/pranavAL/InvRL_Auto-Evaluate
 cd InvRL_Auto-Evaluate
@@ -26,6 +26,10 @@ conda activate myenv
 ⚠️**WARNING**⚠️ 
 
 All code should run within the specified virtual environment as created above, considering the strict requirements of Vortex. No further packages are required to be installed.
+* This work use wandb for real time logging of metrics, please register for the account and use the given command to login.
+```
+wandb login
+```
 
 ## System Requirements
 * OS - Windows 10
@@ -33,6 +37,6 @@ All code should run within the specified virtual environment as created above, c
 * NVIDIA Driver - 457.49
 * CUDA Version - 11.1
 
-🔴**IMPORTANT**❗🔴
+🔴**IMPORTANT**🔴
 
-These are strict requirements. Vortex tools used in this project is not supported on Linux and its graphics is currently tested only on the above configurations.
+These are strict requirements. Vortex tools used in this work is not supported on Linux and its graphics for this paper is currently tested only on the above configurations.
