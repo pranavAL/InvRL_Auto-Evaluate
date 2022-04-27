@@ -98,7 +98,7 @@ dependencies:
   - xz=5.2.5=h62dcd97_0
   - yaml=0.2.5=h8ffe710_2
   - zipp=3.7.0=pyhd3eb1b0_0
-  - zlib=1.2.12=h8cc25b3_1
+  - zlib
   - zstd=1.4.9=h19a0ad4_0
   - pip:
     - absl-py==1.0.0

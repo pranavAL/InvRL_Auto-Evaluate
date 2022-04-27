@@ -3,7 +3,7 @@ import torch
 import numpy as np
 import torch.nn as nn
 from network import PPO
-from arguments import get_args
+from policy_arguments import get_args
 from replay_buffer import Memory
 from torch.distributions import MultivariateNormal
 class Agent:
@@ -18,7 +18,7 @@ class Agent:
         self.state_dim = args.state_dim
         self.action_dim = args.action_dim
         self.action_std = args.std
-        self.gamma = args.gamma
+        self.gamma = args.gammas
         self.lam = args.lam
         self.args = args
         self.loss_epoch = 0
@@ -33,7 +33,7 @@ class Agent:
                                     {'params': self.policy.critic_layer.parameters(), 'lr':self.lr_critic, 'betas':self.betas}
                                     ])
 
-        self.scheduler = torch.optim.lr_scheduler.StepLR(self.policy_optimizer, step_size=1000, gamma=0.96)
+        self.scheduler = torch.optim.lr_scheduler.StepLR(self.policy_optimizer, step_size=2000, gamma=0.96)
 
         self.memory = Memory()
         self.action_var = torch.full((self.action_dim,), self.action_std * self.action_std).to(self.args.device)

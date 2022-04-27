@@ -11,9 +11,9 @@ from math import dist
 
 from model_dynamics import DynamicsPredictor
 from model_infractions import SafetyPredictor
-from vae_arguments import get_args as vae_args
 
 SUB_STEPS = 5
+
 class env():
 
     def __init__(self, args):
@@ -39,11 +39,11 @@ class env():
         fd.loc[:,self.dyna_feats+self.safe_feats] = (fd.loc[:,self.dyna_feats+self.safe_feats]
                                                     - self.min_val)/(self.max_val - self.min_val)
 
-        self.experts = ['5efb9aacbcf5631c14097d5d', '5efcee755503691934047938']
-        self.exp_values = fd.loc[fd["Session id"]==self.experts[self.args.expert],
+        self.experts = '5efb9aacbcf5631c14097d5d'
+        self.exp_values = fd.loc[fd["Session id"]==self.experts,
                                 self.dyna_feats+self.safe_feats]
 
-        self.args.steps_per_episode = len(self.exp_values)
+        self.args.steps_per_episode = len(self.exp_values) - self.args.seq_len_dynamics
 
         # Define the setup and scene file paths
         self.setup_file = 'Setup.vxc'
@@ -62,33 +62,33 @@ class env():
         safe_model_path = os.path.join('..','save_model', 'vae_recon_safety.pth')
 
         self.dynamicsmodel = DynamicsPredictor(
-            n_features = vae_args.n_features_dynamics,
-            fc_dim = vae_args.fc_dim_dynamics,
-            seq_len = vae_args.seq_len_dynamics,
-            batch_size = vae_args.batch_size_dynamics,
-            latent_spc = vae_args.latent_spc_dynamics,
-            learning_rate = vae_args.learning_rate,
-            epochs = vae_args.max_epochs,
-            beta = vae_args.beta
+            n_features = self.args.n_features_dynamics,
+            fc_dim = self.args.fc_dim_dynamics,
+            seq_len = self.args.seq_len_dynamics,
+            batch_size = self.args.batch_size_dynamics,
+            latent_spc = self.args.latent_spc_dynamics,
+            learning_rate = self.args.learning_rate,
+            epochs = self.args.max_epochs,
+            beta = self.args.beta
         )
 
         self.safetymodel = SafetyPredictor(
-            n_features = vae_args.n_features_safety,
-            fc_dim = vae_args.fc_dim_safety,
-            batch_size = vae_args.batch_size_safety,
-            latent_spc = vae_args.latent_spc_safety,
-            learning_rate = vae_args.learning_rate,
-            epochs = vae_args.max_epochs,
-            beta = vae_args.beta
+            n_features = self.args.n_features_safety,
+            fc_dim = self.args.fc_dim_safety,
+            batch_size = self.args.batch_size_safety,
+            latent_spc = self.args.latent_spc_safety,
+            learning_rate = self.args.learning_rate,
+            epochs = self.args.max_epochs,
+            beta = self.args.beta
         )
 
-        self.dynamics_model.load_state_dict(torch.load(dynamics_model_path))
-        self.dynamics_model.cuda()
-        self.dynamics_model.eval()
+        self.dynamicsmodel.load_state_dict(torch.load(dynamics_model_path))
+        self.dynamicsmodel.cuda()
+        self.dynamicsmodel.eval()
 
-        self.safe_model.load_state_dict(torch.load(safe_model_path))
-        self.safe_model.cuda()
-        self.safe_model.eval()
+        self.safetymodel.load_state_dict(torch.load(safe_model_path))
+        self.safetymodel.cuda()
+        self.safetymodel.eval()
 
         self.env_col = []
         self.knock_ball = []
@@ -104,6 +104,7 @@ class env():
         self.reward = 0
         self.dynfeat = []
         self.saffeat = []
+        self.curr_safety = [0.0,0.0,0.0,0.0,0.0]
         self.current_steps = 0
         self.per_step_fuel = []
         self.per_step_power = []
@@ -112,7 +113,8 @@ class env():
         self.load_scene()
         self.get_goals()
 
-        state, reward, _, _ = self._get_obs()
+        while len(self.dynfeat) < self.args.seq_len_dynamics:
+            state, reward, _, _ = self._get_obs()
 
         return state, reward
 
@@ -132,7 +134,7 @@ class env():
         obs, reward, dyna_penalty, safe_penalty = self._get_obs()
 
         # Done flag
-        if self.current_steps + 1 > self.args.steps_per_episode:
+        if self.current_steps + 1 > self.args.steps_per_episode or self.goal_distance < 1.0:
             print("Episode over")
             done = True
             self.store_logs()
@@ -174,18 +176,24 @@ class env():
                      self.equip_coll, self.pole_fell, self.pole_touch, self.coll_env]
 
         RewardVal = self.normalize(RewardVal)
+        self.new_safety = RewardVal[3:]
+        if self.curr_safety != self.new_safety:
+            infractions = self.new_safety
+            self.curr_safety = self.new_safety
+        else:
+            infractions = [0.0,0.0,0.0,0.0,0.0] 
 
         self.dynfeat.append(RewardVal[:3])
-        self.saffeat.append(RewardVal[3:])
+        self.saffeat.append(infractions)
 
-        if len(self.rewfeatures) >= vae_args.seq_len:
-            exp_dyn = torch.tensor(list(self.exp_values.iloc[-vae_args.seq_len:,:][self.dyna_feats].values)).float()
-            pol_dyn = torch.tensor(self.dynfeat[-vae_args.seq_len:]).float()
-            dyna_penalty = self.get_penalty(exp_dyn, pol_dyn)
+        if len(self.dynfeat) >= self.args.seq_len_dynamics:
+            exp_dyn = torch.tensor(list(self.exp_values.iloc[self.current_steps:self.current_steps+self.args.seq_len_dynamics,:][self.dyna_feats].values)).float()
+            pol_dyn = torch.tensor(self.dynfeat[self.current_steps:self.current_steps+self.args.seq_len_dynamics]).float()
+            dyna_penalty = self.get_penalty(exp_dyn, pol_dyn, self.dynamicsmodel, type="dynamic")
 
-        exp_saf = torch.tensor(list(self.exp_values.iloc[self.current_steps,:][self.safe_feats].values)).float()
+        exp_saf = torch.tensor([0,0,0,0,0]).float()
         pol_saf = torch.tensor(list(self.saffeat[self.current_steps])).float()
-        saf_penalty = self.get_penalty(exp_saf, pol_saf)
+        safe_penalty = self.get_penalty(exp_saf, pol_saf, self.safetymodel, type="safety")
 
         states = np.array([*self.SwingLinPos, *self.BoomLinPos, *self.BuckLinPos, *self.StickLinPos,
                            self.SwingAngVel, self.BoomAngvel, self.BuckAngvel, self.StickAngvel,
@@ -194,8 +202,10 @@ class env():
         states = (states - np.mean(states))/(np.std(states))
         self.goal_distance = dist(self.goal,self.BuckLinPos)
         reward =  1 - self.goal_distance/10.0
-
-        return states, reward, dyna_penalty, saf_penalty
+        dyna_penalty = (1 - dyna_penalty - 0.970)/(1-0.970)
+        safe_penalty = (1 - safe_penalty - 0.998)/(1-0.998)
+       
+        return states, reward, dyna_penalty, safe_penalty
 
     def get_heuristics(self):
         self.ball_knock = self.MetricsInterface.getOutputContainer()['Number of tennis balls knocked over by operator'].value
@@ -212,7 +222,7 @@ class env():
         self.per_step_fuel.append(self.fuelCons)
 
     def get_goals(self):
-        self.goal1 = self.MetricsInterface.getOutputContainer()['Path3 Easy Transform'].value
+        self.goal1 = self.MetricsInterface.getOutputContainer()['Path6 Easy Transform'].value
         self.goal2 = self.MetricsInterface.getOutputContainer()['Path8 Easy Transform'].value
         self.goal3 = self.MetricsInterface.getOutputContainer()['Path13 Hard Transform'].value
 
@@ -236,14 +246,17 @@ class env():
     def get_numpy(self, x):
         return x.squeeze().to('cpu').detach().numpy()
 
-    def get_penalty(self, expert, novice, model):
+    def get_penalty(self, expert, novice, model, type):
         expert = expert.unsqueeze(0).to(model.device)
         novice = novice.unsqueeze(0).to(model.device)
-        z1, _, _ = model.encoder(expert)
-        z2, _, _ = model.encoder(novice)
-        penalty = torch.dist(z1.squeeze(), z2.squeeze(), 2)
+        _, mu1, _ = model.encoder(expert)
+        _, mu2, logvar = model.encoder(novice)
+        if type=="dynamic":
+            penalty =  - torch.sum(1 + logvar -mu2.pow(2) - logvar.exp()) * 10000
+        else:
+            penalty = torch.dist(mu1.squeeze(), mu2.squeeze(), 2)   
         penalty = self.get_numpy(penalty)
-        return 1.0 - penalty
+        return penalty
 
     def load_scene(self):
         # The first time we load the scene

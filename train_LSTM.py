@@ -5,7 +5,7 @@ import warnings
 import numpy as np
 import pandas as pd
 import torch.nn as nn
-from arguments import get_args
+from vae_arguments import get_args
 import pytorch_lightning as pl
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
@@ -54,9 +54,9 @@ class CraneDatasetModule():
         pred = []
         for sess in df['Session id'].unique():
             sess_feat = df.loc[df["Session id"]==sess,:]
-            for i in range(0,len(sess_feat)-self.seq_len):
+            for i in range(0,len(sess_feat)-self.seq_len-1):
                 input.append(list(sess_feat.iloc[i:i+self.seq_len,:][train_feats].values))
-                pred.append(list(sess_feat.iloc[i:i+self.seq_len,:][train_feats].values))
+                pred.append(list(sess_feat.iloc[i+1:i+self.seq_len+1,:][train_feats].values))
 
         return torch.tensor(input).float(), torch.tensor(pred).float()
 

@@ -7,7 +7,7 @@ warnings.filterwarnings('ignore')
 
 from agent import Agent
 from environment import env
-from arguments import get_args
+from policy_arguments import get_args
 
 if __name__ == "__main__":
 
@@ -26,7 +26,7 @@ if __name__ == "__main__":
 
     for _ in range(int(args.steps_per_episode)):
         action = agent.act(state, is_training)
-        state_, reward, penalty, done, _ = env.step(list(action))
+        state_, reward, dyna_penalty, safe_penalty, done, _ = env.step(list(action))
 
         state = state_
 

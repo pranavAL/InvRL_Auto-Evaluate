@@ -10,29 +10,28 @@ import wandb
 import numpy as np
 from agent import Agent
 from environment import env
-from arguments import get_args
+from policy_arguments import get_args
 
 if __name__ == "__main__":
 
     args = get_args()
     is_training = True
 
-    wandb.init(name=f"{args.test_id}_{args.complexity}_{args.expert}", config=args)
+    wandb.init(name=f"{args.test_id}_{args.complexity}", config=args)
 
     agent = Agent(args)
     env = env(args)
 
     agent.save_weights()
+    mean_reward = []
     mean_dyna_loss = []
     mean_penalty_loss = []
-    mean_reward = []
-
+    
     for ep in range(500):
         env.render(active=False)
         state, _ = env.reset()
         print("New Episode Started")
         done = False
-        total_reward = []
         total_dyna_loss = []
         total_penalty_loss = []
 
@@ -40,23 +39,26 @@ if __name__ == "__main__":
 
             action = agent.act(state, is_training)
             state_, reward, dyna_penalty, safe_penalty, done, _ = env.step(list(action))
-            print(dyna_penalty)
-            print(safe_penalty)
 
-            total_reward.append(reward)
             total_dyna_loss.append(dyna_penalty)
             total_penalty_loss.append(safe_penalty)
 
             if args.test_id == "Dynamic":
-                agent.save_eps(state, reward + dyna_penalty + safe_penalty, action, done, state_)
-            elif args.test_id == "Dense":
+                agent.save_eps(state, reward + dyna_penalty, action, done, state_)
+            elif args.test_id == "Safety":
+                agent.save_eps(state, reward + safe_penalty, action, done, state_)    
+            elif args.test_id == "DynamicSafety":
+                agent.save_eps(state, reward + safe_penalty + dyna_penalty, action, done, state_)        
+            elif args.test_id == "Task":
                 agent.save_eps(state, reward, action, done, state_)
             else:
-                print("Error: Please choose a reward type: Dense or Dynamic")
+                print("Error: Please choose correct reward")
+                break
 
             state = state_
 
             if done:
+                mean_reward.append(env.goal_distance)
                 break
 
         print(f"Episode: {ep} Distance Left: {env.goal_distance}")
@@ -64,11 +66,10 @@ if __name__ == "__main__":
 
         agent.memory.saveBuffer()
 
-        mean_reward.append(np.mean(total_reward))
         mean_dyna_loss.append(np.mean(total_dyna_loss))
         mean_penalty_loss.append(np.mean(total_penalty_loss))
 
-        wandb.log({'Avg. Total Reward last 10 episodes':np.mean(mean_reward[-10:])})
+        wandb.log({'Avg. Final Distance from Goal last 10 episodes': np.mean(mean_reward[-10:])})
         wandb.log({'Avg. Dynamic Reward last 10 episodes':np.mean(mean_dyna_loss[-10:])})
         wandb.log({'Avg. Penalty Reward last 10 episodes':np.mean(mean_penalty_loss[-10:])})
         wandb.log({'Avg. Torque (in %) last 10 Episode':np.mean(env.tor_avg[-10:])})
