@@ -23,6 +23,16 @@ cd InvRL_Auto-Evaluate
 conda env create -f environment.yml
 conda activate myenv
 ```
-⚠️**WARNING**⚠️ All code should run within the specified virtual environment as created above, considering the strict requirements of Vortex. No further packages are required to be installed.
+⚠️**WARNING**⚠️ 
+
+All code should run within the specified virtual environment as created above, considering the strict requirements of Vortex. No further packages are required to be installed.
 
 ## System Requirements
+* OS - Windows 10
+* GPU - NVIDIA GeForce GTX 1050 Ti
+* NVIDIA Driver - 457.49
+* CUDA Version - 11.1
+
+🔴**IMPORTANT**❗🔴
+
+These are strict requirements. Vortex tools used in this project is not supported on Linux and its graphics is currently tested only on the above configurations.
