@@ -23,5 +23,6 @@ cd InvRL_Auto-Evaluate
 conda env create -f environment.yml
 conda activate myenv
 ```
+<span style="color: red;">**NOTE:**</span> All code should run within the specified virtual environment as created above, considering the strict requirements of Vortex. No further packages are required to be installed.
 
 ## System Requirements
