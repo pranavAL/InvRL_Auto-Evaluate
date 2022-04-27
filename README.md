@@ -63,3 +63,23 @@ python ExtractFeatures.py
 python EDA.py
 ```
 * To get a preview of the above code, for visual analysis of the dataset explore the jupyter notebook `ExtractFeatures.ipynb` and `EDA.ipynb`
+
+# Distribution Learning
+### Dynamics Distribution
+```
+python model_dynamics.py
+```
+### Safety Distribution
+```
+python model_infractions.py
+```
+
+# Inference
+To check the reconstruction of the future states given the dynamics
+```
+python infer.py
+```
+To show visualisation of the distribution of infractions
+```
+python inference.py
+```
