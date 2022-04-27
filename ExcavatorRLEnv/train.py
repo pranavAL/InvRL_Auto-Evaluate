@@ -48,7 +48,7 @@ if __name__ == "__main__":
             elif args.test_id == "Safety":
                 agent.save_eps(state, reward + safe_penalty, action, done, state_)    
             elif args.test_id == "DynamicSafety":
-                agent.save_eps(state, reward + safe_penalty + dyna_penalty, action, done, state_)        
+                agent.save_eps(state, reward + 0.5 * safe_penalty + dyna_penalty, action, done, state_)        
             elif args.test_id == "Task":
                 agent.save_eps(state, reward, action, done, state_)
             else:

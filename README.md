@@ -47,3 +47,19 @@ The default scenes and mechanism of the crane are manipulated to match the requi
 copy scenes\*.vxscene C:\CM Labs\Vortex Construction Assets 21.1\assets\Excavator\Scenes\ArcSwipe
 copy scenes\*.vxmechanism  C:\CM Labs\Vortex Construction Assets 21.1\assets\Excavator\Mechanisms\Excavator
 ```
+
+# Dataset Collection and Analysis
+<p align="center">
+  <img width="75%" src="datasets/dataset.png">
+</p>
+
+* The dataset of different experts are collected using Vortex Advantage simulator systems which features enclosed computers running Vortex software.
+* To extract features into human readable format from the original raw dataset run
+```
+python ExtractFeatures.py
+```
+* For further analysis, feature engineering and extracting the final dataset divided into train, test and validation set use
+```
+python EDA.py
+```
+* To get a preview of the above code, for visual analysis of the dataset explore the jupyter notebook `ExtractFeatures.ipynb` and `EDA.ipynb`
