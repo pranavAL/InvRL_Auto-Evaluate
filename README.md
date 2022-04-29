@@ -70,7 +70,7 @@ python EDA.py
 python model_dynamics.py
 ```
 <p align="center">
-  <img width="50%" src="outputs/model_dynamics.png">
+  <img width="50%" src="datasets/model_dynamics.png">
 </p>
 ### Safety Distribution
 ```
