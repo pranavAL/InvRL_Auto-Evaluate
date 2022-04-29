@@ -99,10 +99,14 @@ python inference.py
 ### Training
 ```
 cd ExcavatorRLEnv
-python train.py --complexity 0 --test_id "Reward Type"
-python agent.py --complexity 0 --test_id "Reward Type"
+python train.py --complexity 0 --test_id "Reward Type" & python agent.py --complexity 0 --test_id "Reward Type"
 ```
-Please specify the reward type that is: "Task", "Dynamic", "DynamicSafety"
+Please specify the reward type that is: "Task", "Dynamic", "DynamicSafety".
+🔴**IMPORTANT**🔴
+* In an ideal case a single code should both interact with as well as update the policy. 
+* In our case, the interaction with the environment as well as policy upadte is done with two different processes.
+* Since, Vortex use GIL lock and Pytorch need GIL for backpropagation.
+* To avoid this run two different process as shown above.
 
 ### Testing
 ```
