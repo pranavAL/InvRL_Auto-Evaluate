@@ -77,7 +77,7 @@ python model_dynamics.py
 python model_infractions.py
 ```
 <p align="center">
-  <img width="50%" src="outputs/model_infractions.png">
+  <img width="50%" src="datasets/model_infractions.png">
 </p>
 # Inference
 To check the reconstruction of the future states given the dynamics
