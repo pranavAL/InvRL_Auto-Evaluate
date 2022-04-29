@@ -72,6 +72,7 @@ python model_dynamics.py
 <p align="center">
   <img width="50%" src="datasets/model_dynamics.png">
 </p>
+
 ### Safety Distribution
 ```
 python model_infractions.py
