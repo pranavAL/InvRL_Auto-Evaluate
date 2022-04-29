@@ -44,8 +44,8 @@ These are strict requirements. Vortex tools used in this work is not supported o
 # Post-Installation
 The default scenes and mechanism of the crane are manipulated to match the requirement of this work.
 ```
-copy scenes\*.vxscene C:\CM Labs\Vortex Construction Assets 21.1\assets\Excavator\Scenes\ArcSwipe
-copy scenes\*.vxmechanism  C:\CM Labs\Vortex Construction Assets 21.1\assets\Excavator\Mechanisms\Excavator
+copy scenes\*.vxscene "C:\CM Labs\Vortex Construction Assets 21.1\assets\Excavator\Scenes\ArcSwipe"
+copy scenes\*.vxmechanism  "C:\CM Labs\Vortex Construction Assets 21.1\assets\Excavator\Mechanisms\Excavator"
 ```
 
 # Dataset Collection and Analysis
@@ -82,4 +82,18 @@ python infer.py
 To show visualisation of the distribution of infractions
 ```
 python inference.py
+```
+# Policy Learning
+
+### Training
+```
+cd ExcavatorRLEnv
+python train.py --complexity 0 --test_id "Reward Type"
+python agent.py --complexity 0 --test_id "Reward Type"
+```
+Please specify the reward type that is: "Task", "Dynamic", "DynamicSafety"
+
+### Testing
+```
+python test.py --complexity 0 --test_id "Reward Type"
 ```

@@ -5,7 +5,6 @@ def get_args():
 
     parser.add_argument('-me','--max_epochs', type=int, default=100, help="Number of epchs to train")
     parser.add_argument('-kldc','--beta', type=float, default=0.001, help='weighting factor of KLD')
-    parser.add_argument('-gam','--gamma', type=float, default=0.1, help='weighting factor of MSE')
     parser.add_argument('-lr','--learning_rate', type=float, default=0.0001, help="Neural Network Learning Rate")
     parser.add_argument('-istr','--is_train', type=bool, help="Train or Testing")
 
