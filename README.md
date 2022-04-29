@@ -83,6 +83,9 @@ To show visualisation of the distribution of infractions
 ```
 python inference.py
 ```
+<p align="center">
+  <img width="35%" src="outputs/vae_safety.png">
+</p>
 # Policy Learning
 
 ### Training
