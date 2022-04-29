@@ -42,7 +42,7 @@ wandb login
 These are strict requirements. Vortex tools used in this work is not supported on Linux and its graphics for this paper is currently tested only on the above configurations.
 
 # Post-Installation
-The default scenes and mechanism of the crane are manipulated to match the requirement of this work.
+The default scenes and mechanism of the crane are manipulated to match the requirement of this work. Please run the below code to change default configurations.
 ```
 copy scenes\*.vxscene "C:\CM Labs\Vortex Construction Assets 21.1\assets\Excavator\Scenes\ArcSwipe"
 copy scenes\*.vxmechanism  "C:\CM Labs\Vortex Construction Assets 21.1\assets\Excavator\Mechanisms\Excavator"
@@ -69,11 +69,16 @@ python EDA.py
 ```
 python model_dynamics.py
 ```
+<p align="center">
+  <img width="50%" src="outputs/model_dynamics.png">
+</p>
 ### Safety Distribution
 ```
 python model_infractions.py
 ```
-
+<p align="center">
+  <img width="50%" src="outputs/model_infractions.png">
+</p>
 # Inference
 To check the reconstruction of the future states given the dynamics
 ```
