@@ -100,3 +100,4 @@ Please specify the reward type that is: "Task", "Dynamic", "DynamicSafety"
 ```
 python test.py --complexity 0 --test_id "Reward Type"
 ```
+<img src="outputs/Safety_Trim.gif" alt="My Project GIF" width="500" height="250">
