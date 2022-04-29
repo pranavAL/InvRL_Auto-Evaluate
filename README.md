@@ -99,5 +99,9 @@ Please specify the reward type that is: "Task", "Dynamic", "DynamicSafety"
 ### Testing
 ```
 python test.py --complexity 0 --test_id "Reward Type"
+
+https://user-images.githubusercontent.com/22427664/166001789-caeb167e-ba0e-40e5-bc70-0150e3511c01.mp4
+
+
 ```
 ![](outputs/Safety_Trim.gif)
