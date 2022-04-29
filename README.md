@@ -115,3 +115,7 @@ python test.py --complexity 0 --test_id "Reward Type"
 ```
 https://user-images.githubusercontent.com/22427664/166001879-1255a934-c0a9-4582-aafd-22e199d60dce.mp4
 
+🔴**Note**🔴
+* We do not release a single test code for running the project.
+* This is because of the need to train multiple modules.
+
