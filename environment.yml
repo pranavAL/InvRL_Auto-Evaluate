@@ -4,8 +4,10 @@ channels:
   - conda-forge
   - defaults
 dependencies:
+  - absl-py=1.0.0=pyhd8ed1ab_0
   - aiohttp=3.8.1=py38h2bbff1b_1
   - aiosignal=1.2.0=pyhd3eb1b0_0
+  - async-timeout=4.0.2=pyhd8ed1ab_0
   - attrs=21.4.0=pyhd3eb1b0_0
   - blas=1.0=mkl
   - blinker=1.4=py38haa95532_0
@@ -14,9 +16,11 @@ dependencies:
   - brotli-bin=1.0.9=h8ffe710_7
   - brotlipy=0.7.0=py38h2bbff1b_1003
   - ca-certificates=2021.10.8=h5b45459_0
+  - cachetools=5.0.0=pyhd8ed1ab_0
   - certifi=2021.10.8=py38haa244fe_2
   - cffi=1.15.0=py38h2bbff1b_1
   - charset-normalizer=2.0.4=pyhd3eb1b0_0
+  - click=8.1.2=py38haa244fe_0
   - colorama=0.4.4=pyhd3eb1b0_0
   - cryptography=36.0.0=py38h21b164f_0
   - cudatoolkit=11.1.1=heb2d755_10
@@ -24,7 +28,9 @@ dependencies:
   - dataclasses=0.8=pyh6d0b6a4_7
   - fonttools=4.32.0=py38h294d835_0
   - freetype=2.10.4=hd328e21_0
+  - frozenlist=1.3.0=py38h294d835_1
   - future=0.18.2=py38haa244fe_5
+  - google-auth-oauthlib=0.4.6=pyhd8ed1ab_0
   - icu=68.2=h0e60522_0
   - idna=3.3=pyhd3eb1b0_0
   - importlib-metadata=4.11.3=py38haa95532_0
@@ -40,6 +46,7 @@ dependencies:
   - libtiff=4.2.0=hd0e1b90_0
   - libuv=1.40.0=he774522_0
   - libwebp=1.2.2=h2bbff1b_0
+  - libzlib=1.2.11=h8ffe710_1014
   - lz4-c=1.9.3=h2bbff1b_1
   - markdown=3.3.4=py38haa95532_0
   - matplotlib=3.5.1=py38haa244fe_0
@@ -48,10 +55,12 @@ dependencies:
   - mkl-service=2.4.0=py38h2bbff1b_0
   - mkl_fft=1.3.1=py38h277e83a_0
   - mkl_random=1.2.2=py38hf11a4ad_0
+  - multidict=6.0.2=py38h294d835_1
   - munkres=1.1.4=pyh9f0ad1d_0
   - numexpr=2.8.1=py38hb80d3ca_0
   - numpy=1.21.5=py38h7a0a035_1
   - numpy-base=1.21.5=py38hca35cd5_1
+  - oauthlib=3.2.0=pyhd8ed1ab_0
   - openssl=1.1.1n=h8ffe710_0
   - packaging=21.3=pyhd8ed1ab_0
   - pandas=1.4.1=py38hd77b12b_1
@@ -75,11 +84,16 @@ dependencies:
   - pytorch-lightning=0.8.5=py_0
   - pytorch-mutex=1.0=cuda
   - pytz=2021.3=pyhd3eb1b0_0
+  - pyu2f=0.1.5=pyhd8ed1ab_0
   - pyyaml=6.0=py38h294d835_4
   - qt=5.12.9=h5909a2a_4
   - requests=2.27.1=pyhd3eb1b0_0
+  - requests-oauthlib=1.3.1=pyhd8ed1ab_0
+  - rsa=4.8=pyhd8ed1ab_0
   - six=1.16.0=pyhd3eb1b0_1
   - sqlite=3.38.2=h2bbff1b_0
+  - tensorboard=2.8.0=pyhd8ed1ab_1
+  - tensorboard-plugin-wit=1.8.1=pyhd8ed1ab_0
   - tk=8.6.11=h2bbff1b_0
   - torchaudio=0.10.2=py38_cu111
   - torchvision=0.2.2=py_3
@@ -97,41 +111,29 @@ dependencies:
   - wincertstore=0.2=py38haa95532_2
   - xz=5.2.5=h62dcd97_0
   - yaml=0.2.5=h8ffe710_2
+  - yarl=1.7.2=py38h294d835_2
   - zipp=3.7.0=pyhd3eb1b0_0
-  - zlib
+  - zlib=1.2.11=h8ffe710_1014
   - zstd=1.4.9=h19a0ad4_0
   - pip:
-    - absl-py==1.0.0
-    - async-timeout==4.0.2
-    - cachetools==5.0.0
-    - click==8.1.2
     - docker-pycreds==0.4.0
-    - frozenlist==1.3.0
     - fsspec==2022.3.0
     - gitdb==4.0.9
     - gitpython==3.1.27
     - google-auth==2.6.5
-    - google-auth-oauthlib==0.4.6
     - grpcio==1.44.0
-    - multidict==6.0.2
-    - oauthlib==3.2.0
     - pathtools==0.1.2
     - promise==2.3
     - protobuf==3.20.0
     - psutil==5.9.0
     - pyasn1-modules==0.2.8
     - pydeprecate==0.3.2
-    - requests-oauthlib==1.3.1
-    - rsa==4.8
     - sentry-sdk==1.5.10
     - setproctitle==1.2.3
     - setuptools==59.5.0
     - shortuuid==1.0.8
     - smmap==5.0.0
-    - tensorboard==2.8.0
     - tensorboard-data-server==0.6.1
-    - tensorboard-plugin-wit==1.8.1
     - torchmetrics==0.8.0
     - wandb==0.12.14
-    - yarl==1.7.2
-prefix: C:\Users\Prana\Anaconda3\envs\myenv
+prefix: C:\Users\Prana\anaconda3\envs\myenv
