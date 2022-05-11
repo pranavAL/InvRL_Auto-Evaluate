@@ -47,7 +47,7 @@ class env():
 
         # Define the setup and scene file paths
         self.setup_file = 'Setup.vxc'
-        self.content_file = f'C:\CM Labs\Vortex Construction Assets 21.1\\assets\Excavator\Scenes\ArcSwipe\EX_Arc_Swipe{args.complexity}.vxscene'
+        self.content_file = f'C:\CM Labs\Vortex Construction Assets 21.1\\assets\Excavator\Scenes\ArcSwipe\EX_Arc_Swipe.vxscene'
 
         # Create the Vortex Application
         self.application = vxatp3.VxATPConfig.createApplication(self, 'Excavator App', self.setup_file)
@@ -132,9 +132,11 @@ class env():
 
         # Observations
         obs, reward, dyna_penalty, safe_penalty = self._get_obs()
+        if self.goal_distance < 1.0:
+            self.args.complexity += 1
 
         # Done flag
-        if self.current_steps + 1 > self.args.steps_per_episode or self.goal_distance < 1.0:
+        if self.current_steps + 1 > self.args.steps_per_episode or self.args.complexity > len(self.goals) - 1:
             print("Episode over")
             done = True
             self.store_logs()
@@ -222,11 +224,18 @@ class env():
         self.per_step_fuel.append(self.fuelCons)
 
     def get_goals(self):
-        self.goal1 = self.MetricsInterface.getOutputContainer()['Path6 Easy Transform'].value
-        self.goal2 = self.MetricsInterface.getOutputContainer()['Path8 Easy Transform'].value
-        self.goal3 = self.MetricsInterface.getOutputContainer()['Path13 Hard Transform'].value
+        self.goal1 = self.MetricsInterface.getOutputContainer()['Path2 Easy Transform'].value
+        self.goal2 = self.MetricsInterface.getOutputContainer()['Path3 Easy Transform'].value
+        self.goal3 = self.MetricsInterface.getOutputContainer()['Path4 Easy Transform'].value
+        self.goal4 = self.MetricsInterface.getOutputContainer()['Path5 Easy Transform'].value
+        self.goal5 = self.MetricsInterface.getOutputContainer()['Path6 Easy Transform'].value
+        self.goal6 = self.MetricsInterface.getOutputContainer()['Path7 Easy Transform'].value
+        self.goal7 = self.MetricsInterface.getOutputContainer()['Path8 Easy Transform'].value
+        self.goal8 = self.MetricsInterface.getOutputContainer()['Path9 Easy Transform'].value
 
-        self.goals = [self.goal1, self.goal2, self.goal3]
+        self.goals = [self.goal1, self.goal2, self.goal3, 
+                      self.goal4, self.goal5, self.goal6,
+                      self.goal7, self.goal8]
 
     def store_logs(self):
         self.knock_ball.append(self.ball_knock)
