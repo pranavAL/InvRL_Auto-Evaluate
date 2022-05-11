@@ -17,7 +17,7 @@ def get_args():
     parser.add_argument('--lr_crit', type=float, default=1e-3, metavar='G', help='Learning Rate Critic')
     parser.add_argument('--lam', type=float, default=0.95, metavar='G', help='GAE Factor')
     parser.add_argument('--gammas', type=float, default=0.99, metavar='G', help='Discount Factor')
-    parser.add_argument('--state_dim', type=int, default=19, metavar='G', help='Dimension of State Space')
+    parser.add_argument('--state_dim', type=int, default=26, metavar='G', help='Dimension of State Space')
     parser.add_argument('--action_dim', type=int, default=4, metavar='G', help='Dimension of Action Space')
     parser.add_argument('--std', type=float, default=0.2, metavar='G', help='Standard Deviation for Policy Exploration')
 

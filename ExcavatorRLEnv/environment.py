@@ -13,7 +13,6 @@ from model_dynamics import DynamicsPredictor
 from model_infractions import SafetyPredictor
 
 SUB_STEPS = 5
-
 class env():
 
     def __init__(self, args):
@@ -110,6 +109,7 @@ class env():
         self.per_step_fuel = []
         self.per_step_power = []
         self.per_step_torque = []
+        self.last_action = [0.0,0.0,0.0,0.0]
 
         self.load_scene()
         self.get_goals()
@@ -145,6 +145,7 @@ class env():
             done = False
 
         self.current_steps += 1
+        self.last_action = [action[0].item(), action[1].item(), action[2].item(), action[3].item()]
 
         return obs, reward, dyna_penalty, safe_penalty, done, {}
 
@@ -200,7 +201,8 @@ class env():
 
         states = np.array([*self.SwingLinPos, *self.BoomLinPos, *self.BuckLinPos, *self.StickLinPos,
                            self.SwingAngVel, self.BoomAngvel, self.BuckAngvel, self.StickAngvel,
-                           self.BoomLinvel, self.BuckLinvel, self.StickLinvel])
+                           self.BoomLinvel, self.BuckLinvel, self.StickLinvel, *self.goal, 
+                           *self.last_action])
 
         states = (states - np.mean(states))/(np.std(states))
         self.goal_distance = dist(self.goal,self.BuckLinPos)
@@ -225,18 +227,14 @@ class env():
         self.per_step_fuel.append(self.fuelCons)
 
     def get_goals(self):
-        self.goal1 = self.MetricsInterface.getOutputContainer()['Path2 Easy Transform'].value
-        self.goal2 = self.MetricsInterface.getOutputContainer()['Path3 Easy Transform'].value
-        self.goal3 = self.MetricsInterface.getOutputContainer()['Path4 Easy Transform'].value
-        self.goal4 = self.MetricsInterface.getOutputContainer()['Path5 Easy Transform'].value
-        self.goal5 = self.MetricsInterface.getOutputContainer()['Path6 Easy Transform'].value
-        self.goal6 = self.MetricsInterface.getOutputContainer()['Path7 Easy Transform'].value
-        self.goal7 = self.MetricsInterface.getOutputContainer()['Path8 Easy Transform'].value
-        self.goal8 = self.MetricsInterface.getOutputContainer()['Path9 Easy Transform'].value
+        self.goal1 = self.MetricsInterface.getOutputContainer()['Path5 Easy Transform'].value
+        self.goal2 = self.MetricsInterface.getOutputContainer()['Path6 Easy Transform'].value
+        self.goal3 = self.MetricsInterface.getOutputContainer()['Path7 Easy Transform'].value
+        self.goal4 = self.MetricsInterface.getOutputContainer()['Path8 Easy Transform'].value
+        self.goal5 = self.MetricsInterface.getOutputContainer()['Path9 Easy Transform'].value
 
         self.goals = [self.goal1, self.goal2, self.goal3, 
-                      self.goal4, self.goal5, self.goal6,
-                      self.goal7, self.goal8]
+                      self.goal4, self.goal5]
 
     def store_logs(self):
         self.knock_ball.append(self.ball_knock)
