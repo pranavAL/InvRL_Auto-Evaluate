@@ -29,7 +29,7 @@ def get_args():
 
     parser.add_argument('--is_training', default=1, type=int, help='1 for training and 0 for testing')
     parser.add_argument('--steps_per_episode', default=300, type=int, help='Steps per Episode')
-    parser.add_argument('--complexity', deafult=0, type=int, help='State the required complexity')
+    parser.add_argument('--complexity', default=0, type=int, help='State the required complexity')
     
     parser.add_argument('-me','--max_epochs', type=int, default=100, help="Number of epchs to train")
     parser.add_argument('-kldc','--beta', type=float, default=0.001, help='weighting factor of KLD')

@@ -102,6 +102,7 @@ class env():
     def reset(self):
         # Initialize Reward and Step Count
         self.reward = 0
+        self.args.complexity = 0
         self.dynfeat = []
         self.saffeat = []
         self.curr_safety = [0.0,0.0,0.0,0.0,0.0]
