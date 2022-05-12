@@ -42,7 +42,7 @@ class env():
         self.exp_values = fd.loc[fd["Session id"]==self.experts,
                                 self.dyna_feats+self.safe_feats]
 
-        self.args.steps_per_episode = len(self.exp_values) - self.args.seq_len_dynamics
+        self.args.steps_per_episode = 1000
 
         # Define the setup and scene file paths
         self.setup_file = 'Setup.vxc'
@@ -191,13 +191,15 @@ class env():
         self.saffeat.append(infractions)
 
         if len(self.dynfeat) >= self.args.seq_len_dynamics:
-            exp_dyn = torch.tensor(list(self.exp_values.iloc[self.current_steps:self.current_steps+self.args.seq_len_dynamics,:][self.dyna_feats].values)).float()
+            terminate = len(self.exp_values) - self.args.seq_len_dynamics
+            self.curr_step = min(self.current_steps, terminate)
+            exp_dyn = torch.tensor(list(self.exp_values.iloc[self.curr_step:self.curr_step+self.args.seq_len_dynamics,:][self.dyna_feats].values)).float()
             pol_dyn = torch.tensor(self.dynfeat[self.current_steps:self.current_steps+self.args.seq_len_dynamics]).float()
-            dyna_penalty = self.get_penalty(exp_dyn, pol_dyn, self.dynamicsmodel, type="dynamic")
+            dyna_penalty = self.get_penalty(exp_dyn, pol_dyn, self.dynamicsmodel)
 
         exp_saf = torch.tensor([0,0,0,0,0]).float()
         pol_saf = torch.tensor(list(self.saffeat[self.current_steps])).float()
-        safe_penalty = self.get_penalty(exp_saf, pol_saf, self.safetymodel, type="safety")
+        safe_penalty = self.get_penalty(exp_saf, pol_saf, self.safetymodel)
 
         states = np.array([*self.SwingLinPos, *self.BoomLinPos, *self.BuckLinPos, *self.StickLinPos,
                            self.SwingAngVel, self.BoomAngvel, self.BuckAngvel, self.StickAngvel,
@@ -227,14 +229,18 @@ class env():
         self.per_step_fuel.append(self.fuelCons)
 
     def get_goals(self):
-        self.goal1 = self.MetricsInterface.getOutputContainer()['Path5 Easy Transform'].value
-        self.goal2 = self.MetricsInterface.getOutputContainer()['Path6 Easy Transform'].value
-        self.goal3 = self.MetricsInterface.getOutputContainer()['Path7 Easy Transform'].value
-        self.goal4 = self.MetricsInterface.getOutputContainer()['Path8 Easy Transform'].value
-        self.goal5 = self.MetricsInterface.getOutputContainer()['Path9 Easy Transform'].value
+        self.goal1 = self.MetricsInterface.getOutputContainer()['Path2 Easy Transform'].value
+        self.goal2 = self.MetricsInterface.getOutputContainer()['Path3 Easy Transform'].value
+        self.goal3 = self.MetricsInterface.getOutputContainer()['Path4 Easy Transform'].value
+        self.goal4 = self.MetricsInterface.getOutputContainer()['Path5 Easy Transform'].value
+        self.goal5 = self.MetricsInterface.getOutputContainer()['Path6 Easy Transform'].value
+        self.goal6 = self.MetricsInterface.getOutputContainer()['Path7 Easy Transform'].value
+        self.goal7 = self.MetricsInterface.getOutputContainer()['Path8 Easy Transform'].value
+        self.goal8 = self.MetricsInterface.getOutputContainer()['Path9 Easy Transform'].value
 
         self.goals = [self.goal1, self.goal2, self.goal3, 
-                      self.goal4, self.goal5]
+                      self.goal4, self.goal5, self.goal6,
+                      self.goal7, self.goal8]
 
     def store_logs(self):
         self.knock_ball.append(self.ball_knock)
@@ -254,15 +260,12 @@ class env():
     def get_numpy(self, x):
         return x.squeeze().to('cpu').detach().numpy()
 
-    def get_penalty(self, expert, novice, model, type):
+    def get_penalty(self, expert, novice, model):
         expert = expert.unsqueeze(0).to(model.device)
         novice = novice.unsqueeze(0).to(model.device)
         _, mu1, _ = model.encoder(expert)
-        _, mu2, logvar = model.encoder(novice)
-        if type=="dynamic":
-            penalty =  - torch.sum(1 + logvar -mu2.pow(2) - logvar.exp()) * 10000
-        else:
-            penalty = torch.dist(mu1.squeeze(), mu2.squeeze(), 2)   
+        _, mu2, _ = model.encoder(novice)
+        penalty = torch.dist(mu1.squeeze(), mu2.squeeze(), 2)   
         penalty = self.get_numpy(penalty)
         return penalty
 
