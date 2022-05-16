@@ -26,10 +26,13 @@ dependencies:
   - cudatoolkit=11.1.1=heb2d755_10
   - cycler=0.11.0=pyhd8ed1ab_0
   - dataclasses=0.8=pyh6d0b6a4_7
+  - docker-pycreds=0.4.0=py_0
   - fonttools=4.32.0=py38h294d835_0
   - freetype=2.10.4=hd328e21_0
   - frozenlist=1.3.0=py38h294d835_1
   - future=0.18.2=py38haa244fe_5
+  - gitdb=4.0.9=pyhd8ed1ab_0
+  - gitpython=3.1.27=pyhd8ed1ab_0
   - google-auth-oauthlib=0.4.6=pyhd8ed1ab_0
   - icu=68.2=h0e60522_0
   - idna=3.3=pyhd3eb1b0_0
@@ -61,11 +64,13 @@ dependencies:
   - numpy=1.21.5=py38h7a0a035_1
   - numpy-base=1.21.5=py38hca35cd5_1
   - oauthlib=3.2.0=pyhd8ed1ab_0
-  - openssl=1.1.1n=h8ffe710_0
+  - openssl=1.1.1o=h8ffe710_0
   - packaging=21.3=pyhd8ed1ab_0
   - pandas=1.4.1=py38hd77b12b_1
   - pillow=9.0.1=py38hdc2b20a_0
   - pip=21.2.2=py38haa95532_0
+  - promise=2.3=py38haa244fe_6
+  - psutil=5.9.0=py38h294d835_1
   - pyasn1=0.4.8=pyhd3eb1b0_0
   - pycparser=2.21=pyhd3eb1b0_0
   - pyjwt=1.7.1=py38_0
@@ -81,7 +86,6 @@ dependencies:
   - python-dateutil=2.8.2=pyhd8ed1ab_0
   - python_abi=3.8=2_cp38
   - pytorch=1.10.2=py3.8_cuda11.1_cudnn8_0
-  - pytorch-lightning=0.8.5=py_0
   - pytorch-mutex=1.0=cuda
   - pytz=2021.3=pyhd3eb1b0_0
   - pyu2f=0.1.5=pyhd8ed1ab_0
@@ -90,6 +94,8 @@ dependencies:
   - requests=2.27.1=pyhd3eb1b0_0
   - requests-oauthlib=1.3.1=pyhd8ed1ab_0
   - rsa=4.8=pyhd8ed1ab_0
+  - setproctitle=1.2.3=py38h294d835_0
+  - shortuuid=1.0.8=py38haa244fe_0
   - six=1.16.0=pyhd3eb1b0_1
   - sqlite=3.38.2=h2bbff1b_0
   - tensorboard=2.8.0=pyhd8ed1ab_1
@@ -105,6 +111,7 @@ dependencies:
   - urllib3=1.26.8=pyhd3eb1b0_0
   - vc=14.2=h21ff451_1
   - vs2015_runtime=14.27.29016=h5e58377_2
+  - wandb=0.12.15=pyhd8ed1ab_0
   - werkzeug=2.0.3=pyhd3eb1b0_0
   - wheel=0.37.1=pyhd3eb1b0_0
   - win_inet_pton=1.1.0=py38haa95532_0
@@ -116,24 +123,17 @@ dependencies:
   - zlib=1.2.11=h8ffe710_1014
   - zstd=1.4.9=h19a0ad4_0
   - pip:
-    - docker-pycreds==0.4.0
     - fsspec==2022.3.0
-    - gitdb==4.0.9
-    - gitpython==3.1.27
     - google-auth==2.6.5
     - grpcio==1.44.0
     - pathtools==0.1.2
-    - promise==2.3
     - protobuf==3.20.0
-    - psutil==5.9.0
     - pyasn1-modules==0.2.8
     - pydeprecate==0.3.2
+    - pytorch-lightning==1.6.3
     - sentry-sdk==1.5.10
-    - setproctitle==1.2.3
     - setuptools==59.5.0
-    - shortuuid==1.0.8
     - smmap==5.0.0
     - tensorboard-data-server==0.6.1
     - torchmetrics==0.8.0
-    - wandb==0.12.14
 prefix: C:\Users\Prana\anaconda3\envs\myenv

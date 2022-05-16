@@ -42,8 +42,6 @@ class env():
         self.exp_values = fd.loc[fd["Session id"]==self.experts,
                                 self.dyna_feats+self.safe_feats]
 
-        self.args.steps_per_episode = 1000
-
         # Define the setup and scene file paths
         self.setup_file = 'Setup.vxc'
         self.content_file = f'C:\CM Labs\Vortex Construction Assets 21.1\\assets\Excavator\Scenes\ArcSwipe\EX_Arc_Swipe.vxscene'
@@ -109,7 +107,6 @@ class env():
         self.per_step_fuel = []
         self.per_step_power = []
         self.per_step_torque = []
-        self.last_action = [0.0,0.0,0.0,0.0]
 
         self.load_scene()
         self.get_goals()
@@ -145,8 +142,7 @@ class env():
             done = False
 
         self.current_steps += 1
-        self.last_action = [action[0].item(), action[1].item(), action[2].item(), action[3].item()]
-
+        
         return obs, reward, dyna_penalty, safe_penalty, done, {}
 
     def _get_obs(self):
@@ -203,10 +199,10 @@ class env():
 
         states = np.array([*self.SwingLinPos, *self.BoomLinPos, *self.BuckLinPos, *self.StickLinPos,
                            self.SwingAngVel, self.BoomAngvel, self.BuckAngvel, self.StickAngvel,
-                           self.BoomLinvel, self.BuckLinvel, self.StickLinvel, *self.goal, 
-                           *self.last_action])
+                           self.BoomLinvel, self.BuckLinvel, self.StickLinvel])
 
         states = (states - np.mean(states))/(np.std(states))
+
         self.goal_distance = dist(self.goal,self.BuckLinPos)
         reward =  1 - self.goal_distance/10.0
         dyna_penalty = (1 - dyna_penalty - 0.970)/(1-0.970)
