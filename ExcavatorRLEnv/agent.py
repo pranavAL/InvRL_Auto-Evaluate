@@ -32,7 +32,6 @@ class Agent:
                                     ])
 
         self.memory = Memory()
-        
         self.mseloss = nn.MSELoss()
 
     def save_eps(self, state, reward, action, done, next_state):
@@ -45,11 +44,12 @@ class Agent:
         _, next_values  = self.policy(next_states)
 
         old_values = old_values.detach()
+        self.action_var = torch.full((self.action_dim,), self.action_std * self.action_std).to(self.args.device)
+        self.cov_mat = torch.diag_embed(self.action_var).to(self.args.device).detach()
 
         distribution = MultivariateNormal(action_mean, self.cov_mat)
 
         advantages = self.generalized_advantage_estimation(values, rewards, next_values, dones).detach()
-        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-5)
         returns = self.temporal_difference(rewards, next_values, dones).detach()
 
         critic_loss = self.mseloss(returns, values) * 0.5
@@ -79,9 +79,9 @@ class Agent:
         action_mean, _ = self.policy_old(state)
         
         self.action_var = torch.full((self.action_dim,), self.action_std * self.action_std).to(self.args.device)
-        self.cov_mat = torch.diag(self.action_var).unsqueeze(dim=0)
+        self.cov_mat = torch.diag_embed(self.action_var).to(self.args.device).detach()
         distribution = MultivariateNormal(action_mean, self.cov_mat)
-        action = distribution.sample().detach()
+        action = distribution.sample().float().to(self.args.device)
         return np.clip(action.cpu().numpy(), -1, 1)
             
     def update_ppo(self):
@@ -101,7 +101,6 @@ class Agent:
             self.policy_optimizer.zero_grad()
 
             loss.mean().backward()
-            nn.utils.clip_grad_norm_(self.policy.parameters(), 0.5)
             self.policy_optimizer.step()
         
         self.memory.deleteBuffer()
@@ -122,10 +121,6 @@ class Agent:
         TD = rewards + self.gamma * next_values * (1 - dones)
         return TD
 
-    def lets_init_weights(self):
-        self.policy.lets_init_weights()
-        self.policy_old.lets_init_weights()
-
     def save_weights(self):
         torch.save(self.policy.state_dict(), os.path.join(self.args.save_dir,'actor_ppo.pth'))
         torch.save(self.policy_old.state_dict(), os.path.join(self.args.save_dir,'old_actor_ppo.pth'))
@@ -134,16 +129,10 @@ class Agent:
         self.policy.load_state_dict(torch.load(os.path.join(self.args.save_dir,'actor_ppo.pth')))
         self.policy_old.load_state_dict(torch.load(os.path.join(self.args.save_dir,'old_actor_ppo.pth')))
 
-    def decay_std(self):
-        self.action_std = self.action_std - self.action_std_decay_rate
-        self.action_std = round(self.action_std, 4)
-        self.action_std = max(self.action_std, self.min_action_std)    
-
 if __name__ == "__main__":
     args = get_args()
 
     agent = Agent(args)
-    time_step = 0
 
     while True:
         if 'saved_buffer.pkl' in os.listdir():
@@ -161,6 +150,3 @@ if __name__ == "__main__":
 
             agent.update_ppo()
             agent.save_weights()
-            time_step += 1600
-            if time_step % args.action_std_decay_freq == 0:
-                agent.decay_std()

@@ -17,11 +17,8 @@ def get_args():
     parser.add_argument('--gammas', type=float, default=0.99, metavar='G', help='Discount Factor')
     parser.add_argument('--state_dim', type=int, default=19, metavar='G', help='Dimension of State Space')
     parser.add_argument('--action_dim', type=int, default=4, metavar='G', help='Dimension of Action Space')
-    parser.add_argument('--std', type=float, default=0.6, metavar='G', help='Standard Deviation for Policy Exploration')
+    parser.add_argument('--std', type=float, default=0.01, metavar='G', help='Standard Deviation for Policy Exploration')
     parser.add_argument('--max_steps_train', type=float, default=int(3e6), metavar='G', help='Max. Training Time Step')
-    parser.add_argument('--std_decay_rate', type=float, default=0.05, metavar='G', help='Standard Deviation Decay Rate')
-    parser.add_argument('--min_action_std', type=float, default=0.1, metavar='G', help='Minimum Standard Deviation')
-    parser.add_argument('--std_decay_freq', type=float, default=int(2.5e5), metavar='G', help='Standard Deviation Decay Frequency')
     
     parser.add_argument('--seed', type=int, metavar='N', default=0, help='random seed (default: 0)')
     parser.add_argument('--save-dir', type=str, default='saved_models', help='the path to save the models')
@@ -30,7 +27,7 @@ def get_args():
     parser.add_argument('--wandb_id', type=str, default=None, help="Wandb ID")
 
     parser.add_argument('--is_training', default=1, type=int, help='1 for training and 0 for testing')
-    parser.add_argument('--steps_per_episode', default=1000, type=int, help='Steps per Episode')
+    parser.add_argument('--steps_per_episode', default=400, type=int, help='Steps per Episode')
     parser.add_argument('--complexity', default=0, type=int, help='State the required complexity')
     
     parser.add_argument('-me','--max_epochs', type=int, default=80, help="Number of epchs to train")

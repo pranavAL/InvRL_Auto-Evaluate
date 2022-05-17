@@ -27,7 +27,7 @@ if __name__ == "__main__":
     mean_dyna_loss = []
     mean_penalty_loss = []
     training_step = 0
-    update_time_step = 4 * args.steps_per_episode
+    update_time_step = args.steps_per_episode
     
     while training_step < args.max_steps_train:
         env.render(active=False)
@@ -41,7 +41,7 @@ if __name__ == "__main__":
         while not done:
 
             action = agent.act(state)
-            state_, reward, dyna_penalty, safe_penalty, done, _ = env.step(list(action))
+            state_, reward, dyna_penalty, safe_penalty, done, _ = env.step(action)
 
             total_reward.append(reward)
             total_dyna_loss.append(dyna_penalty)
@@ -61,9 +61,6 @@ if __name__ == "__main__":
 
             state = state_
             training_step += 1
-
-            if not training_step % args.action_std_decay_freq:
-                agent.decay_std()
 
             if not training_step % update_time_step:
                 print("Updating policy")
