@@ -17,7 +17,7 @@ def get_args():
     parser.add_argument('--gammas', type=float, default=0.99, metavar='G', help='Discount Factor')
     parser.add_argument('--state_dim', type=int, default=19, metavar='G', help='Dimension of State Space')
     parser.add_argument('--action_dim', type=int, default=4, metavar='G', help='Dimension of Action Space')
-    parser.add_argument('--std', type=float, default=0.01, metavar='G', help='Standard Deviation for Policy Exploration')
+    parser.add_argument('--std', type=float, default=0.6, metavar='G', help='Standard Deviation for Policy Exploration')
     parser.add_argument('--max_steps_train', type=float, default=int(3e6), metavar='G', help='Max. Training Time Step')
     
     parser.add_argument('--seed', type=int, metavar='N', default=0, help='random seed (default: 0)')
@@ -30,7 +30,7 @@ def get_args():
     parser.add_argument('--steps_per_episode', default=400, type=int, help='Steps per Episode')
     parser.add_argument('--complexity', default=0, type=int, help='State the required complexity')
     
-    parser.add_argument('-me','--max_epochs', type=int, default=80, help="Number of epchs to train")
+    parser.add_argument('-me','--max_epochs', type=int, default=100, help="Number of epchs to train")
     parser.add_argument('-kldc','--beta', type=float, default=0.001, help='weighting factor of KLD')
     parser.add_argument('-gam','--gamma', type=float, default=0.1, help='weighting factor of MSE')
     parser.add_argument('-lr','--learning_rate', type=float, default=0.0001, help="Neural Network Learning Rate")
@@ -46,7 +46,6 @@ def get_args():
     parser.add_argument('-nfsy','--n_features_safety', type=int, default=5, help="Length of feature for safety")
     parser.add_argument('-lssy','--latent_spc_safety', type=int,default=2, help='Size of Latent Space for safety')
     parser.add_argument('-fcsy','--fc_dim_safety', type=int, default=8, help="Number of FC Nodes for safety")
-
 
     args = parser.parse_args()
     args.is_training = bool(args.is_training)

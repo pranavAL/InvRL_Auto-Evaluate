@@ -32,6 +32,8 @@ class Agent:
                                     ])
 
         self.memory = Memory()
+        self.action_var = torch.full((self.action_dim,), self.action_std * self.action_std).to(self.args.device)
+        self.cov_mat = torch.diag_embed(self.action_var).to(self.args.device).detach()
         self.mseloss = nn.MSELoss()
 
     def save_eps(self, state, reward, action, done, next_state):
@@ -39,16 +41,14 @@ class Agent:
 
     def evaluate_loss(self, states, actions, rewards, next_states, dones):
         self.loss_epoch += 1
-        action_mean, values  = self.policy(states)
+        action_mean, values = self.policy(states)
         old_action_mean, old_values = self.policy_old(states)
         _, next_values  = self.policy(next_states)
 
         old_values = old_values.detach()
-        self.action_var = torch.full((self.action_dim,), self.action_std * self.action_std).to(self.args.device)
-        self.cov_mat = torch.diag_embed(self.action_var).to(self.args.device).detach()
-
+        
         distribution = MultivariateNormal(action_mean, self.cov_mat)
-
+        
         advantages = self.generalized_advantage_estimation(values, rewards, next_values, dones).detach()
         returns = self.temporal_difference(rewards, next_values, dones).detach()
 
@@ -78,8 +78,6 @@ class Agent:
         state = torch.FloatTensor(state).to(self.args.device)
         action_mean, _ = self.policy_old(state)
         
-        self.action_var = torch.full((self.action_dim,), self.action_std * self.action_std).to(self.args.device)
-        self.cov_mat = torch.diag_embed(self.action_var).to(self.args.device).detach()
         distribution = MultivariateNormal(action_mean, self.cov_mat)
         action = distribution.sample().float().to(self.args.device)
         return np.clip(action.cpu().numpy(), -1, 1)
