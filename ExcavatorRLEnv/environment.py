@@ -203,7 +203,7 @@ class env():
 
         states = (states - np.mean(states))/(np.std(states))
 
-        self.goal_distance = dist(self.goal,self.BuckLinPos)
+        self.goal_distance = round(dist(self.goal,self.BuckLinPos), 2)
         reward =  1 - self.goal_distance/10.0
         dyna_penalty = (1 - dyna_penalty - 0.970)/(1-0.970)
         safe_penalty = (1 - safe_penalty - 0.998)/(1-0.998)
