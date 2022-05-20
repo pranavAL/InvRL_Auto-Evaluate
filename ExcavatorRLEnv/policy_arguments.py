@@ -10,14 +10,14 @@ def get_args():
 
     parser.add_argument('--policy_clip', type=float, default=0.2, metavar='G', help='Value to Clip Policy')
     parser.add_argument('--value_clip', type=float, default=0.2, metavar='G', help='Threshold to Clip Value')
-    parser.add_argument('--ppo_epochs', type=int, default=50, metavar='G', help='Number of epochs for PPO')
+    parser.add_argument('--ppo_epochs', type=int, default=10, metavar='G', help='Number of epochs for PPO')
     parser.add_argument('--lr_act', type=float, default=3e-4, metavar='G', help='Learning Rate Actor')
-    parser.add_argument('--lr_crit', type=float, default=1e-3, metavar='G', help='Learning Rate Critic')
-    parser.add_argument('--lam', type=float, default=0.97, metavar='G', help='GAE Factor')
+    parser.add_argument('--lr_crit', type=float, default=3e-4, metavar='G', help='Learning Rate Critic')
+    parser.add_argument('--lam', type=float, default=0.95, metavar='G', help='GAE Factor')
     parser.add_argument('--gammas', type=float, default=0.99, metavar='G', help='Discount Factor')
     parser.add_argument('--state_dim', type=int, default=19, metavar='G', help='Dimension of State Space')
     parser.add_argument('--action_dim', type=int, default=4, metavar='G', help='Dimension of Action Space')
-    parser.add_argument('--std', type=float, default=0.2, metavar='G', help='Standard Deviation for Policy Exploration')
+    parser.add_argument('--std', type=float, default=0.6, metavar='G', help='Standard Deviation for Policy Exploration')
     parser.add_argument('--max_steps_train', type=float, default=int(3e6), metavar='G', help='Max. Training Time Step')
     
     parser.add_argument('--seed', type=int, metavar='N', default=0, help='random seed (default: 0)')

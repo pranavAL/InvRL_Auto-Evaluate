@@ -50,6 +50,7 @@ class Agent:
         distribution = MultivariateNormal(action_mean, self.cov_mat)
         
         advantages = self.generalized_advantage_estimation(values, rewards, next_values, dones).detach()
+        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
         returns = self.temporal_difference(rewards, next_values, dones).detach()
 
         critic_loss = self.mseloss(returns, values) * 0.5
@@ -63,7 +64,7 @@ class Agent:
         surr2 = torch.clamp(ratios, 1 - self.policy_clip, 1 + self.policy_clip) * advantages
         pg_loss = -torch.min(surr1, surr2)
 
-        loss = pg_loss + critic_loss
+        loss = pg_loss.mean() + critic_loss.mean()
 
         self.meta_data['Advantage'].append(advantages.mean().item())
         self.meta_data['TD'].append(returns.mean().item())
@@ -98,7 +99,7 @@ class Agent:
             loss = self.evaluate_loss(states, actions, rewards, next_states, dones)
             self.policy_optimizer.zero_grad()
 
-            loss.mean().backward()
+            loss.backward()
             self.policy_optimizer.step()
         
         self.memory.deleteBuffer()
