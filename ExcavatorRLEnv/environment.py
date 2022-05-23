@@ -13,6 +13,7 @@ from model_dynamics import DynamicsPredictor
 from model_infractions import SafetyPredictor
 
 SUB_STEPS = 5
+
 class env():
 
     def __init__(self, args):
@@ -41,6 +42,8 @@ class env():
         self.experts = '5efb9aacbcf5631c14097d5d'
         self.exp_values = fd.loc[fd["Session id"]==self.experts,
                                 self.dyna_feats+self.safe_feats]
+
+        self.args.steps_per_episode = len(self.exp_values) - self.args.seq_len_dynamics
 
         # Define the setup and scene file paths
         self.setup_file = 'Setup.vxc'
@@ -99,7 +102,6 @@ class env():
     def reset(self):
         # Initialize Reward and Step Count
         self.reward = 0
-        self.args.complexity = 0
         self.dynfeat = []
         self.saffeat = []
         self.curr_safety = [0.0,0.0,0.0,0.0,0.0]
@@ -130,11 +132,9 @@ class env():
 
         # Observations
         obs, reward, dyna_penalty, safe_penalty = self._get_obs()
-        if self.goal_distance < 1.0:
-            self.args.complexity += 1
 
         # Done flag
-        if self.current_steps + 1 > self.args.steps_per_episode or self.args.complexity > len(self.goals) - 1:
+        if self.current_steps + 1 > self.args.steps_per_episode or self.goal_distance < 1.0:
             print("Episode over")
             done = True
             self.store_logs()
@@ -142,7 +142,7 @@ class env():
             done = False
 
         self.current_steps += 1
-        
+
         return obs, reward, dyna_penalty, safe_penalty, done, {}
 
     def _get_obs(self):
@@ -187,23 +187,26 @@ class env():
         self.saffeat.append(infractions)
 
         if len(self.dynfeat) >= self.args.seq_len_dynamics:
-            terminate = len(self.exp_values) - self.args.seq_len_dynamics
-            self.curr_step = min(self.current_steps, terminate)
-            exp_dyn = torch.tensor(list(self.exp_values.iloc[self.curr_step:self.curr_step+self.args.seq_len_dynamics,:][self.dyna_feats].values)).float()
+            exp_dyn = torch.tensor(list(self.exp_values.iloc[self.current_steps:self.current_steps+self.args.seq_len_dynamics,:][self.dyna_feats].values)).float()
             pol_dyn = torch.tensor(self.dynfeat[self.current_steps:self.current_steps+self.args.seq_len_dynamics]).float()
-            dyna_penalty = self.get_penalty(exp_dyn, pol_dyn, self.dynamicsmodel)
+            dyna_penalty = self.get_penalty(exp_dyn, pol_dyn, self.dynamicsmodel, type="dynamic")
 
         exp_saf = torch.tensor([0,0,0,0,0]).float()
         pol_saf = torch.tensor(list(self.saffeat[self.current_steps])).float()
-        safe_penalty = self.get_penalty(exp_saf, pol_saf, self.safetymodel)
+        safe_penalty = self.get_penalty(exp_saf, pol_saf, self.safetymodel, type="safety")
 
-        states = np.array([*self.SwingLinPos, *self.BoomLinPos, *self.BuckLinPos, *self.StickLinPos,
-                           self.SwingAngVel, self.BoomAngvel, self.BuckAngvel, self.StickAngvel,
-                           self.BoomLinvel, self.BuckLinvel, self.StickLinvel])
+        pos_states = np.array([*self.SwingLinPos, *self.BoomLinPos, *self.BuckLinPos, *self.StickLinPos])
+        pos_states = (pos_states - np.mean(pos_states))/(np.std(pos_states))
 
-        states = (states - np.mean(states))/(np.std(states))
+        angvel_states = np.array([self.SwingAngVel, self.BoomAngvel, self.BuckAngvel, self.StickAngvel])
+        angvel_states = (angvel_states - np.mean(angvel_states))/(np.std(angvel_states))
 
-        self.goal_distance = round(dist(self.goal,self.BuckLinPos), 2)
+        linvel_states = np.array([self.BoomLinvel, self.BuckLinvel, self.StickLinvel])  
+        linvel_states = (linvel_states - np.mean(linvel_states))/(np.std(linvel_states))
+
+        states = np.array([*pos_states, *angvel_states, *linvel_states])  
+        
+        self.goal_distance = dist(self.goal,self.BuckLinPos)
         reward =  1 - self.goal_distance/10.0
         dyna_penalty = (1 - dyna_penalty - 0.970)/(1-0.970)
         safe_penalty = (1 - safe_penalty - 0.998)/(1-0.998)
@@ -225,18 +228,9 @@ class env():
         self.per_step_fuel.append(self.fuelCons)
 
     def get_goals(self):
-        self.goal1 = self.MetricsInterface.getOutputContainer()['Path2 Easy Transform'].value
-        self.goal2 = self.MetricsInterface.getOutputContainer()['Path3 Easy Transform'].value
-        self.goal3 = self.MetricsInterface.getOutputContainer()['Path4 Easy Transform'].value
-        self.goal4 = self.MetricsInterface.getOutputContainer()['Path5 Easy Transform'].value
-        self.goal5 = self.MetricsInterface.getOutputContainer()['Path6 Easy Transform'].value
-        self.goal6 = self.MetricsInterface.getOutputContainer()['Path7 Easy Transform'].value
-        self.goal7 = self.MetricsInterface.getOutputContainer()['Path8 Easy Transform'].value
-        self.goal8 = self.MetricsInterface.getOutputContainer()['Path9 Easy Transform'].value
-
-        self.goals = [self.goal1, self.goal2, self.goal3, 
-                      self.goal4, self.goal5, self.goal6,
-                      self.goal7, self.goal8]
+        self.goal1 = self.MetricsInterface.getOutputContainer()['Path6 Easy Transform'].value
+        
+        self.goals = [self.goal1]
 
     def store_logs(self):
         self.knock_ball.append(self.ball_knock)
@@ -256,12 +250,15 @@ class env():
     def get_numpy(self, x):
         return x.squeeze().to('cpu').detach().numpy()
 
-    def get_penalty(self, expert, novice, model):
+    def get_penalty(self, expert, novice, model, type):
         expert = expert.unsqueeze(0).to(model.device)
         novice = novice.unsqueeze(0).to(model.device)
         _, mu1, _ = model.encoder(expert)
-        _, mu2, _ = model.encoder(novice)
-        penalty = torch.dist(mu1.squeeze(), mu2.squeeze(), 2)   
+        _, mu2, logvar = model.encoder(novice)
+        if type=="dynamic":
+            penalty =  - torch.sum(1 + logvar -mu2.pow(2) - logvar.exp()) * 10000
+        else:
+            penalty = torch.dist(mu1.squeeze(), mu2.squeeze(), 2)   
         penalty = self.get_numpy(penalty)
         return penalty
 

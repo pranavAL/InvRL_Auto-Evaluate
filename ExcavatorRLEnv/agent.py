@@ -10,6 +10,8 @@ class Agent:
     def __init__(self, args):
         self.policy_clip = args.policy_clip
         self.value_clip = args.value_clip
+        self.entropy_coef = args.weight_entropy
+        self.vf_loss_coef = args.weight_for_value
         self.PPO_epochs = args.ppo_epochs
         self.lr_actor = args.lr_act
         self.lr_critic = args.lr_crit
@@ -31,6 +33,8 @@ class Agent:
                                     {'params': self.policy.critic_layer.parameters(), 'lr':self.lr_critic, 'betas':self.betas}
                                     ])
 
+        self.scheduler = torch.optim.lr_scheduler.StepLR(self.policy_optimizer, step_size=2000, gamma=0.96)
+
         self.memory = Memory()
         self.action_var = torch.full((self.action_dim,), self.action_std * self.action_std).to(self.args.device)
         self.cov_mat = torch.diag_embed(self.action_var).to(self.args.device).detach()
@@ -41,16 +45,16 @@ class Agent:
 
     def evaluate_loss(self, states, actions, rewards, next_states, dones):
         self.loss_epoch += 1
-        action_mean, values = self.policy(states)
+        action_mean, values  = self.policy(states)
         old_action_mean, old_values = self.policy_old(states)
         _, next_values  = self.policy(next_states)
 
         old_values = old_values.detach()
-        
+
         distribution = MultivariateNormal(action_mean, self.cov_mat)
-        
+        dist_entropy = distribution.entropy().to(self.args.device)
+
         advantages = self.generalized_advantage_estimation(values, rewards, next_values, dones).detach()
-        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
         returns = self.temporal_difference(rewards, next_values, dones).detach()
 
         critic_loss = self.mseloss(returns, values) * 0.5
@@ -62,11 +66,12 @@ class Agent:
         ratios = torch.exp(logprobs - old_logprobs)
         surr1 = ratios * advantages
         surr2 = torch.clamp(ratios, 1 - self.policy_clip, 1 + self.policy_clip) * advantages
-        pg_loss = -torch.min(surr1, surr2)
+        pg_loss = -torch.min(surr1, surr2) - 0.01 * dist_entropy
 
-        loss = pg_loss.mean() + critic_loss.mean()
+        loss = pg_loss + critic_loss
 
         self.meta_data['Advantage'].append(advantages.mean().item())
+        self.meta_data['Entropy'].append(dist_entropy.mean().item())
         self.meta_data['TD'].append(returns.mean().item())
         self.meta_data['Critic_Loss'].append(critic_loss.mean().item())
         self.meta_data['KL'].append(ratios.mean().item())
@@ -75,14 +80,13 @@ class Agent:
         return loss
 
     def act(self, state):
-        
+
         state = torch.FloatTensor(state).to(self.args.device)
         action_mean, _ = self.policy_old(state)
-        
         distribution = MultivariateNormal(action_mean, self.cov_mat)
         action = distribution.sample().float().to(self.args.device)
         return np.clip(action.cpu().numpy(), -1, 1)
-            
+
     def update_ppo(self):
         length = len(self.memory.buffer["states"])
 
@@ -99,9 +103,10 @@ class Agent:
             loss = self.evaluate_loss(states, actions, rewards, next_states, dones)
             self.policy_optimizer.zero_grad()
 
-            loss.backward()
+            loss.mean().backward()
             self.policy_optimizer.step()
-        
+            self.scheduler.step()
+
         self.memory.deleteBuffer()
         self.policy_old.load_state_dict(self.policy.state_dict())
 
@@ -119,6 +124,10 @@ class Agent:
     def temporal_difference(self, rewards, next_values, dones):
         TD = rewards + self.gamma * next_values * (1 - dones)
         return TD
+
+    def lets_init_weights(self):
+        self.policy.lets_init_weights()
+        self.policy_old.lets_init_weights()
 
     def save_weights(self):
         torch.save(self.policy.state_dict(), os.path.join(self.args.save_dir,'actor_ppo.pth'))
@@ -145,7 +154,7 @@ if __name__ == "__main__":
                 except Exception as e:
                     not_ready = True
                 else:
-                    not_ready = False       
+                    not_ready = False
 
             agent.update_ppo()
             agent.save_weights()

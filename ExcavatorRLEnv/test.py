@@ -12,7 +12,6 @@ from policy_arguments import get_args
 if __name__ == "__main__":
 
     args = get_args()
-    is_training = False
 
     env = env(args)
     agent = Agent(args)
@@ -25,7 +24,7 @@ if __name__ == "__main__":
     state, _ = env.reset()
 
     for _ in range(int(args.steps_per_episode)):
-        action = agent.act(state, is_training)
+        action = agent.act(state)
         state_, reward, dyna_penalty, safe_penalty, done, _ = env.step(list(action))
 
         state = state_
