@@ -1,7 +1,7 @@
 import os
 import sys
 sys.path.append(r'C:\CM Labs\Vortex Studio 2021a\bin')
-sys.path.append(r'C:\Users\Prana\OneDrive\Desktop\CMLabs\InvRL_Auto-Evaluate')
+sys.path.append(r'C:\Users\Prana\Desktop\CMLabs\InvRL_Auto-Evaluate')
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -17,7 +17,7 @@ if __name__ == "__main__":
     args = get_args()
     is_training = True
 
-    wandb.init(name=f"{args.test_id}_{args.complexity}", config=args)
+    wandb.init(name=f"{args.test_id}", config=args)
 
     agent = Agent(args)
     env = env(args)
@@ -46,11 +46,11 @@ if __name__ == "__main__":
             total_penalty_loss.append(safe_penalty)
 
             if args.test_id == "Dynamic":
-                agent.save_eps(state, reward * dyna_penalty, action, done, state_)
+                agent.save_eps(state, (reward + dyna_penalty)/2.0, action, done, state_)
             elif args.test_id == "Safety":
-                agent.save_eps(state, reward * safe_penalty, action, done, state_)    
+                agent.save_eps(state, (reward + safe_penalty)/2.0, action, done, state_)    
             elif args.test_id == "DynamicSafety":
-                agent.save_eps(state, reward * safe_penalty * dyna_penalty, action, done, state_)        
+                agent.save_eps(state, (reward + safe_penalty + dyna_penalty)/3.0, action, done, state_)        
             elif args.test_id == "Task":
                 agent.save_eps(state, reward, action, done, state_)
             else:
