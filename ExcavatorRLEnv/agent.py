@@ -54,7 +54,6 @@ class Agent:
         dist_entropy = distribution.entropy().to(self.args.device)
 
         advantages = self.generalized_advantage_estimation(values, rewards, next_values, dones).detach()
-        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-5)
         returns = self.temporal_difference(rewards, next_values, dones).detach()
 
         critic_loss = 0.5 * self.mseloss(returns, values).mean() 
