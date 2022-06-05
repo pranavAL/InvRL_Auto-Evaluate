@@ -6,6 +6,7 @@ from network import PPO
 from policy_arguments import get_args
 from replay_buffer import Memory
 from torch.distributions import MultivariateNormal
+
 class Agent:
     def __init__(self, args):
         self.policy_clip = args.policy_clip
@@ -33,8 +34,6 @@ class Agent:
                                     {'params': self.policy.critic_layer.parameters(), 'lr':self.lr_critic, 'betas':self.betas}
                                     ])
 
-        self.scheduler = torch.optim.lr_scheduler.StepLR(self.policy_optimizer, step_size=2000, gamma=0.96)
-
         self.memory = Memory()
         self.action_var = torch.full((self.action_dim,), self.action_std * self.action_std).to(self.args.device)
         self.cov_mat = torch.diag_embed(self.action_var).to(self.args.device).detach()
@@ -55,9 +54,10 @@ class Agent:
         dist_entropy = distribution.entropy().to(self.args.device)
 
         advantages = self.generalized_advantage_estimation(values, rewards, next_values, dones).detach()
+        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-5)
         returns = self.temporal_difference(rewards, next_values, dones).detach()
 
-        critic_loss = self.mseloss(returns, values) * 0.5
+        critic_loss = 0.5 * self.mseloss(returns, values).mean() 
 
         logprobs = distribution.log_prob(actions).float().to(self.args.device)
         old_distribution = MultivariateNormal(old_action_mean, self.cov_mat)
@@ -66,9 +66,11 @@ class Agent:
         ratios = torch.exp(logprobs - old_logprobs)
         surr1 = ratios * advantages
         surr2 = torch.clamp(ratios, 1 - self.policy_clip, 1 + self.policy_clip) * advantages
-        pg_loss = -torch.min(surr1, surr2) - 0.01 * dist_entropy
+        pg_loss = -torch.min(surr1, surr2).mean()
 
-        loss = pg_loss + critic_loss
+        entr_loss =  -dist_entropy.mean()
+
+        loss = pg_loss + self.vf_loss_coef * critic_loss + self.entropy_coef * entr_loss
 
         self.meta_data['Advantage'].append(advantages.mean().item())
         self.meta_data['Entropy'].append(dist_entropy.mean().item())
@@ -103,9 +105,8 @@ class Agent:
             loss = self.evaluate_loss(states, actions, rewards, next_states, dones)
             self.policy_optimizer.zero_grad()
 
-            loss.mean().backward()
+            loss.backward()
             self.policy_optimizer.step()
-            self.scheduler.step()
 
         self.memory.deleteBuffer()
         self.policy_old.load_state_dict(self.policy.state_dict())
