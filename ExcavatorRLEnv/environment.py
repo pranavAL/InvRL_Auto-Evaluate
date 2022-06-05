@@ -164,7 +164,6 @@ class env():
         self.BuckAngPos = self.ControlInterface.getOutputContainer()['State | Actuator Bucket AngPosition'].value
         self.StickAngPos = self.ControlInterface.getOutputContainer()['State | Actuator Arm AngPosition'].value
 
-        self.goal = self.goals[self.args.complexity]
         self.get_heuristics()
 
         RewardVal = [self.EngAvgPow, self.EngTorAvg, self.fuelCons, self.ball_knock,
@@ -182,8 +181,8 @@ class env():
         self.saffeat.append(infractions)
 
         if len(self.dynfeat) >= self.args.seq_len_dynamics:
-            exp_dyn = torch.tensor(list(self.exp_values.iloc[self.current_steps:self.current_steps+self.args.seq_len_dynamics,:][self.dyna_feats].values)).float()
             pol_dyn = torch.tensor(self.dynfeat[self.current_steps:self.current_steps+self.args.seq_len_dynamics]).float()
+            exp_dyn = pol_dyn
             dyna_penalty = self.get_penalty(exp_dyn, pol_dyn, self.dynamicsmodel, type="dynamic")
 
         exp_saf = torch.tensor([0,0,0,0,0]).float()
@@ -223,7 +222,7 @@ class env():
         self.per_step_fuel.append(self.fuelCons)
 
     def get_goals(self):
-        self.goal1 = self.MetricsInterface.getOutputContainer()['Path3 Easy Transform'].value
+        self.goal = self.MetricsInterface.getOutputContainer()['Path3 Easy Transform'].value
 
     def store_logs(self):
         self.knock_ball.append(self.ball_knock)
