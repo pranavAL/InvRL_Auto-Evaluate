@@ -12,8 +12,6 @@ from math import dist
 from model_dynamics import DynamicsPredictor
 from model_infractions import SafetyPredictor
 
-SUB_STEPS = 5
-
 class env():
 
     def __init__(self, args):
@@ -42,8 +40,6 @@ class env():
         self.experts = '5efb9aacbcf5631c14097d5d'
         self.exp_values = fd.loc[fd["Session id"]==self.experts,
                                 self.dyna_feats+self.safe_feats]
-
-        self.args.steps_per_episode = len(self.exp_values) - self.args.seq_len_dynamics
 
         # Define the setup and scene file paths
         self.setup_file = 'Setup.vxc'
@@ -127,8 +123,7 @@ class env():
         self.ControlInterface.getInputContainer()['Boom [0] | Control Input'].value = action[3].item()
 
         # Step the simulation
-        for _ in range(SUB_STEPS):
-            self.application.update()
+        self.application.update()
 
         # Observations
         obs, reward, dyna_penalty, safe_penalty = self._get_obs()
@@ -228,9 +223,7 @@ class env():
         self.per_step_fuel.append(self.fuelCons)
 
     def get_goals(self):
-        self.goal1 = self.MetricsInterface.getOutputContainer()['Path6 Easy Transform'].value
-        
-        self.goals = [self.goal1]
+        self.goal1 = self.MetricsInterface.getOutputContainer()['Path3 Easy Transform'].value
 
     def store_logs(self):
         self.knock_ball.append(self.ball_knock)
