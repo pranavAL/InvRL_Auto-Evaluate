@@ -17,12 +17,14 @@ if __name__ == "__main__":
     args = get_args()
     is_training = True
 
-    wandb.init(name=f"{args.test_id}", config=args)
+    #wandb.init(name=f"{args.test_id}", config=args)
+    wandb.init(id="81oov120", resume="allow")
 
     agent = Agent(args)
     env = env(args)
 
-    agent.save_weights()
+    agent.load_weights()
+    #agent.save_weights()
     mean_reward = []
     mean_dyna_loss = []
     mean_penalty_loss = []
