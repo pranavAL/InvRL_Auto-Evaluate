@@ -97,6 +97,7 @@ class env():
 
     def reset(self):
         # Initialize Reward and Step Count
+        self.complexity = 0
         self.reward = 0
         self.dynfeat = []
         self.saffeat = []
@@ -128,8 +129,11 @@ class env():
         # Observations
         obs, reward, dyna_penalty, safe_penalty = self._get_obs()
 
+        if self.goal_distance < 1.0:
+            self.complexity += 1
+
         # Done flag
-        if self.current_steps + 1 > self.args.steps_per_episode or self.goal_distance < 1.0:
+        if self.current_steps + 1 > self.args.steps_per_episode or self.complexity > 4:
             print("Episode over")
             done = True
             self.store_logs()
@@ -199,6 +203,7 @@ class env():
         linvel_states = (linvel_states - np.mean(linvel_states))/(np.std(linvel_states))
 
         states = np.array([*pos_states, *angvel_states, *linvel_states])  
+        self.goal = self.goals[self.complexity]
         
         self.goal_distance = dist(self.goal,self.BuckLinPos)
         reward =  1 - self.goal_distance/10.0
@@ -222,7 +227,17 @@ class env():
         self.per_step_fuel.append(self.fuelCons)
 
     def get_goals(self):
-        self.goal = self.MetricsInterface.getOutputContainer()['Path3 Easy Transform'].value
+        self.goal1 = self.MetricsInterface.getOutputContainer()['Path1 Easy Transform'].value
+        self.goal2 = self.MetricsInterface.getOutputContainer()['Path2 Easy Transform'].value
+        self.goal3 = self.MetricsInterface.getOutputContainer()['Path3 Easy Transform'].value
+        self.goal4 = self.MetricsInterface.getOutputContainer()['Path4 Easy Transform'].value
+        self.goal5 = self.MetricsInterface.getOutputContainer()['Path5 Easy Transform'].value
+        self.goal6 = self.MetricsInterface.getOutputContainer()['Path6 Easy Transform'].value
+        self.goal7 = self.MetricsInterface.getOutputContainer()['Path7 Easy Transform'].value
+        self.goal8 = self.MetricsInterface.getOutputContainer()['Path8 Easy Transform'].value
+
+        self.goals = [self.goal1, self.goal2, self.goal3, self.goal4, self.goal5, self.goal6,
+                      self.goal7, self.goal8]
 
     def store_logs(self):
         self.knock_ball.append(self.ball_knock)

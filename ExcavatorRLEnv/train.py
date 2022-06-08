@@ -17,14 +17,14 @@ if __name__ == "__main__":
     args = get_args()
     is_training = True
 
-    #wandb.init(name=f"{args.test_id}", config=args)
-    wandb.init(id="81oov120", resume="allow")
+    wandb.init(name=f"{args.test_id}", config=args)
+    #wandb.init(id="81oov120", resume="allow")
 
     agent = Agent(args)
     env = env(args)
 
-    agent.load_weights()
-    #agent.save_weights()
+    #agent.load_weights()
+    agent.save_weights()
     mean_reward = []
     mean_dyna_loss = []
     mean_penalty_loss = []
@@ -48,9 +48,9 @@ if __name__ == "__main__":
             total_penalty_loss.append(safe_penalty)
 
             if args.test_id == "Dynamic":
-                agent.save_eps(state, (reward + dyna_penalty)/2.0, action, done, state_)
+                agent.save_eps(state, reward + 0.1*dyna_penalty, action, done, state_)
             elif args.test_id == "Safety":
-                agent.save_eps(state, (reward + safe_penalty)/2.0, action, done, state_)    
+                agent.save_eps(state, reward * safe_penalty, action, done, state_)    
             elif args.test_id == "DynamicSafety":
                 agent.save_eps(state, (reward + safe_penalty + dyna_penalty)/3.0, action, done, state_)        
             elif args.test_id == "Task":
@@ -64,7 +64,7 @@ if __name__ == "__main__":
             if done:
                 break
 
-        print(f"Episode: {ep} Distance Left: {env.goal_distance}")
+        print(f"Episode: {ep} Distance Left: {env.goal_distance} Complexity: {env.complexity}")
         print("Updating policy")
 
         agent.memory.saveBuffer()
