@@ -18,7 +18,7 @@ if __name__ == "__main__":
     is_training = True
 
     wandb.init(name=f"{args.test_id}", config=args)
-    #wandb.init(id="81oov120", resume="allow")
+    #wandb.init(id="2gdnyypv", resume="allow")
 
     agent = Agent(args)
     env = env(args)
@@ -29,7 +29,7 @@ if __name__ == "__main__":
     mean_dyna_loss = []
     mean_penalty_loss = []
     
-    for ep in range(1000):
+    for ep in range(2000):
         env.render(active=False)
         state, _ = env.reset()
         print("New Episode Started")
@@ -63,6 +63,7 @@ if __name__ == "__main__":
 
             if done:
                 break
+                
 
         print(f"Episode: {ep} Distance Left: {env.goal_distance} Complexity: {env.complexity}")
         print("Updating policy")

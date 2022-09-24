@@ -34,6 +34,8 @@ class Agent:
                                     {'params': self.policy.critic_layer.parameters(), 'lr':self.lr_critic, 'betas':self.betas}
                                     ])
 
+        self.scheduler = torch.optim.lr_scheduler.StepLR(self.policy_optimizer, step_size=2000, gamma=0.96)                            
+
         self.memory = Memory()
         self.action_var = torch.full((self.action_dim,), self.action_std * self.action_std).to(self.args.device)
         self.cov_mat = torch.diag_embed(self.action_var).to(self.args.device).detach()
@@ -106,6 +108,7 @@ class Agent:
 
             loss.backward()
             self.policy_optimizer.step()
+            self.scheduler.step()
 
         self.memory.deleteBuffer()
         self.policy_old.load_state_dict(self.policy.state_dict())

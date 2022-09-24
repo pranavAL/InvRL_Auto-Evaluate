@@ -1,6 +1,6 @@
 import sys
 sys.path.append(r'C:\CM Labs\Vortex Studio 2021a\bin')
-sys.path.append(r'C:\Users\Prana\OneDrive\Desktop\CMLabs\InvRL_Auto-Evaluate')
+sys.path.append(r'C:\Users\Prana\Desktop\CMLabs\InvRL_Auto-Evaluate')
 
 import warnings
 warnings.filterwarnings('ignore')
