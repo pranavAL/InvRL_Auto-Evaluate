@@ -120,3 +120,19 @@ python test.py --complexity 0 --test_id "Reward Type"
 * This is because of the need to train multiple independent modules.
 * Instead the above codes should be run sequentially to get the results as presented.
 
+## Paper associated
+
+If you use it, please cite:
+
+Automatic Evaluation of Excavator Operators using Learned Reward Functions Pranav Agarwal, Marek Teichmann, Sheldon Andrews, Samira Ebrahimi Kahou. Reinforcement Learning for Real Life (RL4RealLife) Workshop in the 36th Conference on Neural Information Processing Systems (NeurIPS 2022) 
+
+```
+@InProceedings{,
+    author={Pranav Agarwal and Marek Teichmann and Sheldon Andrews and Samira Ebrahimi Kahou},
+    year={},
+    month = {},
+    title = {Automatic Evaluation of Excavator Operators using Learned Reward Functions},
+    booktitle = {Reinforcement Learning for Real Life (RL4RealLife) Workshop in the 36th Conference on Neural Information Processing Systems (NeurIPS 2022)},
+    url={}
+}
+```
