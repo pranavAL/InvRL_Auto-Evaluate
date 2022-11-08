@@ -34,8 +34,8 @@ wandb login
 
 ## System Requirements
 * OS - Windows 10
-* GPU - NVIDIA GeForce GTX 1050 Ti
-* NVIDIA Driver - 457.49
+* GPU >= NVIDIA GeForce GTX 1050 Ti
+* NVIDIA Driver >= 457.49
 * CUDA Version - 11.1
 
 🔴**IMPORTANT**🔴
