@@ -7,7 +7,7 @@ Automatic Evaluation of Excavator Operators using Learned Reward Functions
 
 This repo contains code for our paper 
 ***Automatic Evaluation of Excavator Operators using Learned Reward Functions*** by  
-[Pranav Agarwal](https://pranaval.github.io/), [Marek Teichmann](https://ca.linkedin.com/in/marekteichmann), [Sheldon Andrews](https://profs.etsmtl.ca/sandrews/) and [Samira Ebrahimi Kahou](https://saebrahimi.github.io/).
+[Pranav Agarwal](https://pranaval.github.io/), [Marek Teichmann](https://ca.linkedin.com/in/marekteichmann), [Sheldon Andrews](https://profs.etsmtl.ca/sandrews/) and [Samira Ebrahimi Kahou](https://saebrahimi.github.io/) accepted at Reinforcement Learning for Real Life (RL4RealLife) Workshop in the 36th Conference on Neural Information Processing Systems (NeurIPS 2022).
 
 # Installation
 ## Simulator
