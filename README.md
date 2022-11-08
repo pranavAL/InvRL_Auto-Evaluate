@@ -1,4 +1,4 @@
-# Automatic Evaluation of Excavator Operators using Learned Reward Functions
+Automatic Evaluation of Excavator Operators using Learned Reward Functions
 ====
 
 <p align="center">
