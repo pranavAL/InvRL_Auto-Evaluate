@@ -1,4 +1,5 @@
 # Automatic Evaluation of Excavator Operators using Learned Reward Functions
+====
 
 <p align="center">
   <img width="75%" src="datasets/approach.png">
