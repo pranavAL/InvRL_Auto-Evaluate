@@ -1,11 +1,11 @@
-# Learning Reward Functions using Expert Demonstrations for Crane Automation
+# Automatic Evaluation of Excavator Operators using Learned Reward Functions
 
 <p align="center">
   <img width="75%" src="datasets/approach.png">
 </p>
 
 Official code repository for the paper 
-***Learning Reward Functions using Expert Demonstrations for Crane Automation*** by [Pranav Agarwal](https://pranaval.github.io/).
+***Automatic Evaluation of Excavator Operators using Learned Reward Functions*** by [Pranav Agarwal](https://pranaval.github.io/), [Marek Teichmann](https://ca.linkedin.com/in/marekteichmann), [Sheldon Andrews](https://profs.etsmtl.ca/sandrews/) and [Samira Ebrahimi Kahou](https://saebrahimi.github.io/).
 
 # Installation
 ## Simulator
