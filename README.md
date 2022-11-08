@@ -100,7 +100,7 @@ python inference.py
 ### Training
 ```
 cd ExcavatorRLEnv
-python train.py --test_id "Reward Type" & python agent.py --complexity 0 --test_id "Reward Type"
+python train.py --test_id "Reward Type" & python agent.py --test_id "Reward Type"
 ```
 Please specify the reward type that is: "Task", "Dynamic", "DynamicSafety".
 
@@ -112,7 +112,7 @@ Please specify the reward type that is: "Task", "Dynamic", "DynamicSafety".
 
 ### Testing
 ```
-python test.py --complexity 0 --test_id "Reward Type"
+python test.py --test_id "Reward Type"
 ```
 
 🔴**Note**🔴
