@@ -129,10 +129,9 @@ Automatic Evaluation of Excavator Operators using Learned Reward Functions Prana
 ```
 @InProceedings{,
     author={Pranav Agarwal and Marek Teichmann and Sheldon Andrews and Samira Ebrahimi Kahou},
-    year={},
-    month = {},
+    year={2022},
     title = {Automatic Evaluation of Excavator Operators using Learned Reward Functions},
     booktitle = {Reinforcement Learning for Real Life (RL4RealLife) Workshop in the 36th Conference on Neural Information Processing Systems (NeurIPS 2022)},
-    url={}
+    url={https://arxiv.org/abs/2211.07941v1}
 }
 ```
